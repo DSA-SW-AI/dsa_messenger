@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css')}}" />
+</head>
+
+<body>
+
+    <div class="container">
+        <div class="leftSide">
+            <div class="header">
+                <div class="userimg">
+                    <!-- You can add the logo image or any other image here -->
+                    <img src="{{ url_for('static', filename='images/ava5.jpg') }}" alt="" class="cover">
+                </div>
+                <div class="user-info">
+                    <!-- Display the welcome message with the user's name and staffid -->
+                    <p>Welcome, {{ firstname }} : {{ staffid }}</p>
+                </div>
+            </div>
+
+
+            <div class="search_chat">
+                <div>
+                    <input type="text" placeholder="Search or start new chat">
+                    <ion-icon name="search-outline"></ion-icon>
+                </div>
+            </div>
+
+            <span class="chatlist">
+                {% for user in users %}
+                <span class="block">
+                    <div class="imgBox">
+                        <img src="{{ url_for('static', filename='images/dsa-logo.jfif') }}" class="cover" alt="">
+                    </div>
+                    <div class="details">
+                        <div class="listHead">
+                            <h4>{{ user.firstname }} {{ user.lastname }}</h4>
+                            <p class="time"></p>
+                        </div>
+                    </div>
+                </span>
+                {% endfor %}
+            </span>
+
+            <div class="chatlist">
+                {% for group in groups %}
+                <a style="text-decoration: none;" href="{{ url_for('chat_page', group_id=group[0]) }}" class="block">
+                    <div class="imgBox">
+                        <img src="{{ url_for('static', filename='images/dsa-logo.jfif') }}" class="cover" alt="">
+                    </div>
+                    <div class="details">
+                        <div class="listHead">
+                            <h4>{{ group[1] }}</h4>
+                            <p class="time"></p>
+                        </div>
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="rightSide">
+            <div class="header">
+                <div class="imgText">
+                    <div class="userimg">
+                        <img src="{{ url_for('static', filename='images/dsa-logo.jfif') }}" alt="" class="cover">
+                    </div>
+                    <h4>Defence Space Administration Messenger</h4>
+                </div>
+            </div>
+
+
+            <div class="chatbox" id="chatbox">
+                {% for message in messages %}
+                <div
+                    class="message-wrapper {% if message[1]|string == user_id|string %}outgoing-message{% else %}incoming-message{% endif %}">
+                    <div class="message-bubble">
+                        <p class="message-text">
+                            <strong>{{ message[2] or 'Unknown' }} {{ message[3] or '' }}:</strong> {{ message[4] }}
+                        </p>
+                        <span class="timestamp">{{ message[5] }}</span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+
+            <div class="chat_input">
+                <ion-icon name="happy-outline"></ion-icon>
+                <ion-icon name="mic"></ion-icon>
+                <ion-icon name="document-attach-outline"></ion-icon>
+                <input type="text" id="messageInput" placeholder="Type a message" required>
+                <button id="sendButton">
+                    <ion-icon name="send-outline"></ion-icon>
+                </button>
+            </div>
+        </div>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"
+        integrity="sha512-q/dWJ3kcmjBLU4Qc47E4A9kTB4m3wuTY7vkFJDTZKjTs8jhyGQnaUrxa0Ytd0ssMZhbNua9hE+E7Qv1j+DyZwA=="
+        crossorigin="anonymous"></script>
+
+
+    <script>
+        var sessionUserId = "{{ user_id }}";  // ✅ Define sessionUserId from Flask session
+        var groupId = "{{ group_id }}";       // ✅ Get group_id from Flask session
+
+        console.log("Session User ID:", sessionUserId);
+        console.log("Session Group ID:", groupId);
+
+        document.addEventListener("DOMContentLoaded", function () {
+            console.log("DOM fully loaded");
+
+            const sendButton = document.getElementById("sendButton");
+            const messageInput = document.getElementById("messageInput");
+
+            console.log("sendButton:", sendButton);
+            console.log("messageInput:", messageInput);
+            console.log("groupId:", groupId);
+            console.log("Session User ID:", sessionUserId);
+
+            const socket = io.connect("http://127.0.0.1:5005/");
+
+            socket.on("connect", function () {
+                console.log("Connected to WebSocket server");
+            });
+
+            socket.on("disconnect", function () {
+                console.log("Disconnected from WebSocket server");
+            });
+
+            if (groupId && groupId !== "None") {  // ✅ Ensure groupId is valid
+                console.log("Joining group:", groupId);
+                socket.emit("join_group", { group_id: parseInt(groupId) });  // ✅ Convert group_id to number
+            } else {
+                console.error("⚠️ Error: groupId is null or undefined!");
+            }
+
+            if (sendButton) {
+                // Send message when the send button is clicked
+                sendButton.addEventListener("click", function () {
+                    const message = messageInput.value.trim();
+                    if (message === "" || !groupId || groupId === "None") {
+                        console.error("⚠️ Cannot send message. Missing message or group_id!");
+                        return;
+                    }
+
+                    console.log("Attempting to send message:", message, "Group:", groupId, "User:", sessionUserId);
+
+                    // Emit message through WebSocket with user_id and group_id
+                    socket.emit("send_message", {
+                        message: message,
+                        group_id: parseInt(groupId),  // ✅ Ensure group_id is a number
+                        user_id: sessionUserId
+                    });
+
+                    console.log("✅ Sent message to Group:", groupId, "from User:", sessionUserId);
+
+                    messageInput.value = "";  // Clear input after sending
+                });
+
+            } else {
+                console.error("⚠️ Error: sendButton not found!");
+            }
+
+            socket.on("receive_message", function (data) {
+                console.log("✅ Received message from server:", data);
+
+                let messagesContainer = document.getElementById("chatbox");
+
+                if (!messagesContainer) {
+                    console.error("⚠️ Error: .messages container not found!");
+                    return;
+                }
+
+                let messageWrapper = document.createElement("div");
+                messageWrapper.classList.add("message-wrapper");
+
+                if (data.user_id == sessionUserId) {
+                    messageWrapper.classList.add("outgoing-message");
+                } else {
+                    messageWrapper.classList.add("incoming-message");
+                }
+
+                let messageBubble = document.createElement("div");
+                messageBubble.classList.add("message-bubble");
+
+                let messageText = document.createElement("p");
+                messageText.classList.add("message-text");
+                messageText.innerHTML = `<strong>${data.sender_name}: </strong> ${data.message}`;
+
+                let timestamp = document.createElement("span");
+                timestamp.classList.add("timestamp");
+                timestamp.innerText = data.timestamp;
+
+                messageBubble.appendChild(messageText);
+                messageBubble.appendChild(timestamp);
+                messageWrapper.appendChild(messageBubble);
+                messagesContainer.appendChild(messageWrapper);
+
+                messagesContainer.scrollTop = messagesContainer.scrollHeight; // Auto-scroll
+            });
+
+        });
+
+    </script>
+
+
+
+    <script type="module" src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.esm.js"></script>
+    <script nomodule src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.js"></script>
+</body>
+
+</html>

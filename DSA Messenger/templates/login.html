@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css')}}"/>
+</head>
+<body>
+
+    <div class="login-card">
+        <div class="brand">
+            <div class="brand-logo">
+                <img src="{{ url_for('static', filename='images/dsa-logo.jfif') }}" alt="DSA Logo">
+            </div>
+            <p>Welcome Back!!!</p>
+        </div>
+
+        <form id="loginForm" action="/submit_login" method="POST">
+            <div class="form-group">
+                <label for="staffid">Staff ID</label>
+                <input 
+                    type="text" 
+                    id="staffid" 
+                    name="staffid"
+                    placeholder="Enter your Staff ID"
+                >
+                <div class="error" id="staffidError"></div>
+            </div>
+
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input 
+                    type="password" 
+                    id="password" 
+                    name="password"
+                    placeholder="Enter your password"
+                >
+                <div class="error" id="passwordError"></div>
+            </div>
+
+            <div class="remember-forgot">
+                <div class="remember-me">
+                    <input type="checkbox" id="remember">
+                    <label for="remember">Remember me</label>
+                </div>
+                <a href="#" class="forgot-password">Forgot password?</a>
+            </div>
+
+            <button type="submit" class="login-btn" id="loginButton">
+                Sign in
+            </button>
+        </form>
+
+        <div class="signup-link">
+            <p>Don't have an account? <a href="/">Sign up</a></p>
+        </div>
+    </div>
+
+    <!-- <script src="{{ url_for('static', filename = 'script.js') }}"></script> -->
+    <script>
+        document.getElementById("loginForm").addEventListener("submit", function (event) {
+            // Prevent form submission (default)
+            event.preventDefault();
+
+            // Clear previous errors
+            document.getElementById("staffidError").textContent = '';
+            document.getElementById("passwordError").textContent = '';
+
+            let isValid = true;
+            
+            // Get form values
+            const staffid = document.getElementById("staffid").value.trim();
+            const password = document.getElementById("password").value.trim();
+
+            // Validate form
+            if (staffid === "") {
+                document.getElementById("staffidError").textContent = "Staff ID is required.";
+                isValid = false;
+            }
+
+            if (password === "") {
+                document.getElementById("passwordError").textContent = "Password is required.";
+                isValid = false;
+            }
+
+            if (!isValid) {
+                return; // If validation fails, stop the submission
+            }
+
+            // Prepare the data to send as JSON
+            const loginData = {
+                staffid: staffid,
+                password: password
+            };
+
+            // Send the data as JSON to the Flask backend
+            fetch('/submit_login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json' // Important! Tell Flask the data is JSON
+                },
+                body: JSON.stringify(loginData) // Convert the loginData to JSON format
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // If login is successful, redirect to the chat page
+                    window.location.href = data.redirect;
+                } else {
+                    // Display error message from server response
+                    alert(data.error);
+                }
+            })
+            .catch(error => {
+                console.error("Error during login:", error);
+            });
+        });
+    </script>
+</body>
+</html>
+
+
