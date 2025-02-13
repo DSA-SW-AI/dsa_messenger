@@ -589,7 +589,6 @@ padding: 10px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-top: -20px;
 }
 
 .chat_input ion-icon {
@@ -809,3 +808,29 @@ span.timestamp {
 }
 
 }
+
+.leftSide {
+  /* width: 30%;
+  height: 100vh;
+  background: #fff; */
+  overflow-y: auto;
+  border-right: 1px solid #ddd;
+}
+
+.group-item {
+  display: flex;
+  padding: 10px;
+  text-decoration: none;
+  color: black;
+  border-radius: 5px;
+  transition: background 0.3s;
+}
+
+.group-item.active {
+  background-color: #d3d3d3; /* Highlight active group */
+}
+
+.group-item:hover {
+  background-color: #f0f0f0;
+}
+

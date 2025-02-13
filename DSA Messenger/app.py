@@ -325,6 +325,50 @@ def chat():
 
 # Route for Chat Directorate/Groups
 
+# @app.route('/chat/<int:group_id>')
+# def chat_page(group_id):
+#     if 'user_id' not in session:
+#         return redirect(url_for('login')) 
+
+#     user_id = session['user_id']
+#     staffid = session.get('staffid')
+#     firstname = session.get('firstname')
+
+#     # Fetch the group by its ID
+#     group = get_group_by_id(group_id)
+#     if not group:
+#         return "Group not found", 404
+
+#     conn = get_db_connection()
+#     cursor = conn.cursor()
+
+#     # Fetch users in the group
+#     cursor.execute("""
+#         SELECT u.firstname, u.lastname, u.directorate
+#         FROM users u
+#         JOIN user_groups ug ON u.id = ug.user_id
+#         WHERE ug.group_id = ?
+#     """, (group_id,))
+#     users = cursor.fetchall()
+
+#     # Fetch messages properly
+#     cursor.execute("""
+#         SELECT messages.id, messages.user_id, users.firstname, users.lastname, 
+#                messages.message, messages.timestamp
+#         FROM messages
+#         JOIN users ON messages.user_id = users.id
+#         WHERE messages.group_id = ?
+#         ORDER BY messages.timestamp ASC
+#     """, (group_id,))
+#     messages = cursor.fetchall()  # ✅ This is now correct
+
+#     conn.close()
+
+#     return render_template('chat.html', group=group, messages=messages, users=users, 
+#                            user_id=user_id, firstname=firstname, staffid=staffid, 
+#                            format_timestamp=format_timestamp, group_id=group_id)
+
+
 @app.route('/chat/<int:group_id>')
 def chat_page(group_id):
     if 'user_id' not in session:
@@ -334,15 +378,24 @@ def chat_page(group_id):
     staffid = session.get('staffid')
     firstname = session.get('firstname')
 
-    # Fetch the group by its ID
-    group = get_group_by_id(group_id)
-    if not group:
-        return "Group not found", 404
-
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    # Fetch users in the group
+    # ✅ Fetch all groups the user belongs to
+    cursor.execute("""
+        SELECT g.id, g.name FROM groups g
+        JOIN user_groups ug ON g.id = ug.group_id
+        WHERE ug.user_id = ?
+    """, (user_id,))
+    groups = cursor.fetchall()  # ✅ Now fetching all groups
+
+    # ✅ Fetch the selected group
+    cursor.execute("SELECT id, name FROM groups WHERE id = ?", (group_id,))
+    group = cursor.fetchone()
+    if not group:
+        return "Group not found", 404
+
+    # ✅ Fetch users in the selected group
     cursor.execute("""
         SELECT u.firstname, u.lastname, u.directorate
         FROM users u
@@ -351,7 +404,7 @@ def chat_page(group_id):
     """, (group_id,))
     users = cursor.fetchall()
 
-    # Fetch messages properly
+    # ✅ Fetch messages for the selected group
     cursor.execute("""
         SELECT messages.id, messages.user_id, users.firstname, users.lastname, 
                messages.message, messages.timestamp
@@ -360,11 +413,11 @@ def chat_page(group_id):
         WHERE messages.group_id = ?
         ORDER BY messages.timestamp ASC
     """, (group_id,))
-    messages = cursor.fetchall()  # ✅ This is now correct
+    messages = cursor.fetchall()
 
     conn.close()
 
-    return render_template('chat.html', group=group, messages=messages, users=users, 
+    return render_template('chat.html', groups=groups, group=group, messages=messages, users=users, 
                            user_id=user_id, firstname=firstname, staffid=staffid, 
                            format_timestamp=format_timestamp, group_id=group_id)
 

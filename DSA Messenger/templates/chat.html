@@ -10,47 +10,25 @@
 </head>
 
 <body>
-
     <div class="container">
         <div class="leftSide">
             <div class="header">
                 <div class="userimg">
-                    <!-- You can add the logo image or any other image here -->
                     <img src="{{ url_for('static', filename='images/ava5.jpg') }}" alt="" class="cover">
                 </div>
                 <div class="user-info">
-                    <!-- Display the welcome message with the user's name and staffid -->
                     <p>Welcome, {{ firstname }} : {{ staffid }}</p>
                 </div>
             </div>
-
-
             <div class="search_chat">
                 <div>
                     <input type="text" placeholder="Search or start new chat">
                     <ion-icon name="search-outline"></ion-icon>
                 </div>
             </div>
-
-            <span class="chatlist">
-                {% for user in users %}
-                <span class="block">
-                    <div class="imgBox">
-                        <img src="{{ url_for('static', filename='images/dsa-logo.jfif') }}" class="cover" alt="">
-                    </div>
-                    <div class="details">
-                        <div class="listHead">
-                            <h4>{{ user.firstname }} {{ user.lastname }}</h4>
-                            <p class="time"></p>
-                        </div>
-                    </div>
-                </span>
-                {% endfor %}
-            </span>
-
-            <div class="chatlist">
+            <!-- <div class="chatlist">
                 {% for group in groups %}
-                <a style="text-decoration: none;" href="{{ url_for('chat_page', group_id=group[0]) }}" class="block">
+                <a href="{{ url_for('chat_page', group_id=group[0]) }}" class="block group-item {% if group[0] == group_id %}active{% endif %}" data-group-id="{{ group[0] }}">
                     <div class="imgBox">
                         <img src="{{ url_for('static', filename='images/dsa-logo.jfif') }}" class="cover" alt="">
                     </div>
@@ -62,7 +40,23 @@
                     </div>
                 </a>
                 {% endfor %}
+            </div> -->
+            <div class="chatlist">
+                {% for g in groups %}
+                <a href="{{ url_for('chat_page', group_id=g[0]) }}" 
+                   class="block group-item {% if g[0] == group_id %}active{% endif %}">
+                    <div class="imgBox">
+                        <img src="{{ url_for('static', filename='images/dsa-logo.jfif') }}" class="cover" alt="">
+                    </div>
+                    <div class="details">
+                        <div class="listHead">
+                            <h4>{{ g[1] }}</h4>
+                        </div>
+                    </div>
+                </a>
+                {% endfor %}
             </div>
+            
         </div>
 
         <div class="rightSide">
@@ -207,6 +201,30 @@
                 messagesContainer.scrollTop = messagesContainer.scrollHeight; // Auto-scroll
             });
 
+        });
+
+
+        document.addEventListener("DOMContentLoaded", function () {
+            const groupItems = document.querySelectorAll(".group-item");
+
+            groupItems.forEach(item => {
+                item.addEventListener("click", function (event) {
+                    // Remove active class from all items
+                    groupItems.forEach(g => g.classList.remove("active"));
+
+                    // Add active class to the clicked group
+                    this.classList.add("active");
+                });
+            });
+
+            // Highlight the active group on page load
+            const currentGroupId = new URLSearchParams(window.location.search).get("group_id");
+            if (currentGroupId) {
+                const activeGroup = document.querySelector(`.group-item[data-group-id="${currentGroupId}"]`);
+                if (activeGroup) {
+                    activeGroup.classList.add("active");
+                }
+            }
         });
 
     </script>
