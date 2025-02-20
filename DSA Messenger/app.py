@@ -3,7 +3,7 @@ from flask_socketio import SocketIO, send, emit, join_room
 import sqlite3
 from datetime import datetime
 from flask_cors import CORS
-
+import pytz
 
 
 
@@ -14,7 +14,7 @@ from flask_cors import CORS
 app = Flask(__name__)
 app.secret_key = 'thiskeyissupposedtobeprivateandonlyknowbytheadmin'
 socketio = SocketIO(app, cors_allowed_origins="*")
-CORS(app)
+CORS(app, supports_credentials=True)
 # ---------------------------------------------------------------------------
 
 # All Defined Functions
@@ -29,6 +29,7 @@ def format_timestamp(timestamp):
 def get_db_connection():
     conn = sqlite3.connect('chatdatabase.db', check_same_thread=False, timeout=10)
     conn.row_factory = sqlite3.Row
+
     return conn
 
 # ---------------------------------------------------------------------------
@@ -64,7 +65,7 @@ def link_user_to_group(user_id, directorate):
 # Get User function from session
 def getUsers():
     try:
-        conn = sqlite3.connect('chatdatabase.db')
+        conn = get_db_connection()
         cursor = conn.cursor()
 
         # Get current user's first and last name from session
@@ -113,33 +114,179 @@ def insert():
 # insert()
 # ---------------------------------------------------------------------------
 
-# Function to get group by ID from SQLite
+
+# ---------------------------------------------------------------------------
+# ✅ Function to get group by ID
 def get_group_by_id(group_id):
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM groups WHERE id = ?", (group_id,))
-    group = cursor.fetchone()  # Returns a tuple (id, name)
+    cursor.execute("SELECT id, name FROM groups WHERE id = ?", (group_id,))
+    group = cursor.fetchone()  # Returns (id, name) or None
     conn.close()
     return group
 
 # ---------------------------------------------------------------------------
-
-# Function to get messages for the group
+# ✅ Function to get messages for a group
 def get_messages_for_group(group_id):
     conn = get_db_connection()
     cursor = conn.cursor()
+
     cursor.execute("""
-        SELECT m.user_id, m.message, m.timestamp
-        FROM messages m
-        WHERE m.group_id = ?
-        ORDER BY m.timestamp ASC
+        SELECT messages.id, messages.user_id, users.firstname, users.lastname, messages.message AS content, messages.timestamp
+        FROM messages
+        JOIN users ON messages.user_id = users.id
+        WHERE messages.group_id = ?
+        ORDER BY messages.timestamp ASC
     """, (group_id,))
-    messages = cursor.fetchall()  # Fetch all messages
+
+    g_messages = cursor.fetchall()
+
+    # ✅ Convert Row objects to dictionaries
+    messages = [
+        {
+            "id": row["id"],
+            "user_id": row["user_id"],
+            "sender_name": f"{row['firstname']} {row['lastname']}",  # Combine first and last names
+            "message": row["content"] if row["content"] else "No message content",
+            "timestamp": row["timestamp"]
+        }
+        for row in g_messages
+    ]
+
+    # Debug: Check if sender_name is being correctly added
+    # print("Messages being returned:", messages)
+
+    conn.close()
+    return messages  # ✅ JSON serializable
+
+
+
+
+# ---------------------------------------------------------------------------
+
+
+# Assuming you know the user's timezone or have a way to determine it (e.g., stored in the session)
+user_timezone = pytz.timezone('Africa/Lagos')  # Replace with the user's local timezone
+
+# get user chats(user_id)
+def get_user_chats(user_id):
+    """Retrieve all user chats (groups and private)."""
+    conn = get_db_connection()
+    conn.row_factory = sqlite3.Row  # Ensure rows are accessible as dictionaries
+    cursor = conn.cursor()
+
+    # Fetch user's group chats with message snippet
+    cursor.execute("""
+        SELECT groups.id, groups.name, 'group' AS type,
+            (SELECT SUBSTR(message, 1, 20) FROM messages WHERE group_id = groups.id ORDER BY timestamp DESC LIMIT 1) AS last_message,
+            (SELECT timestamp FROM messages WHERE group_id = groups.id ORDER BY timestamp DESC LIMIT 1) AS timestamp
+        FROM groups
+        JOIN user_groups ON groups.id = user_groups.group_id
+        WHERE user_groups.user_id = ?
+    """, (user_id,))
+    group_chats = cursor.fetchall()
+
+    # Fetch user's private chats with message snippet
+    cursor.execute("""
+        SELECT private_chats.id, users.firstname || ' ' || users.lastname AS name, 'private' AS type,
+            (SELECT SUBSTR(message, 1, 20) FROM messages WHERE private_chat_id = private_chats.id ORDER BY timestamp DESC LIMIT 1) AS last_message,
+            (SELECT timestamp FROM messages WHERE private_chat_id = private_chats.id ORDER BY timestamp DESC LIMIT 1) AS timestamp
+        FROM private_chats
+        JOIN users ON (users.id = private_chats.user1_id OR users.id = private_chats.user2_id)
+        WHERE (private_chats.user1_id = ? OR private_chats.user2_id = ?) AND users.id != ?
+    """, (user_id, user_id, user_id))
+    private_chats = cursor.fetchall()
+
+    # Merge both chats
+    all_chats = group_chats + private_chats
+
+    # Convert results into dictionaries and format the timestamp
+    formatted_chats = []
+    for chat in all_chats:
+        chat_dict = dict(chat)  # Convert sqlite3.Row object into a dictionary
+        if chat_dict["timestamp"]:
+            # Convert the timestamp to a datetime object
+            utc_time = datetime.strptime(chat_dict["timestamp"], '%Y-%m-%d %H:%M:%S').replace(tzinfo=pytz.utc)
+            
+            # Convert UTC to user's local time
+            local_time = utc_time.astimezone(user_timezone)
+            
+            # Format the local time
+            chat_dict["timestamp"] = local_time.strftime('%H:%M')
+
+        formatted_chats.append(chat_dict)
+
+    # Sort by timestamp in descending order (most recent first)
+    formatted_chats.sort(key=lambda x: x["timestamp"] or '', reverse=True)
+
+    return formatted_chats
+
+
+# ---------------------------------------------------------------------------
+# ✅ Function to get messages for a private chat
+def get_messages_for_private_chat(private_chat_id):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT messages.id, messages.user_id, users.firstname || ' ' || users.lastname AS sender_name, 
+               messages.message AS content, messages.timestamp
+        FROM messages
+        JOIN users ON messages.user_id = users.id
+        WHERE messages.private_chat_id = ?
+        ORDER BY messages.timestamp ASC
+    """, (private_chat_id,))
+
+    p_chat = cursor.fetchall()  # Fetch all messages
+
+    # Check if content is empty and add a default message
+    messages = [
+        {
+            "id": row["id"],
+            "user_id": row["user_id"],
+            "sender_name": row["sender_name"],
+            "message": row["content"] if row["content"] else "No message content",  # Default message
+            "timestamp": row["timestamp"]
+        }
+        for row in p_chat
+    ]
+
     conn.close()
     return messages
 
 # ---------------------------------------------------------------------------
+# Get Private Chat by Chat ID
+def get_private_chat_by_id(chat_id):
+    """Fetch details of a private chat given the chat_id"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
 
+    cursor.execute("""
+        SELECT id, user1_id, user2_id FROM private_chats WHERE id = ?
+    """, (chat_id,))
+    
+    private_chat = cursor.fetchone()
+    conn.close()
+    return private_chat  # Returns (id, user1_id, user2_id) or None
+
+# ---------------------------------------------------------------------------
+# ✅ Function to get a private chat between two users
+def get_private_chat_by_details(user1_id, user2_id):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT id FROM private_chats
+        WHERE (user1_id = ? AND user2_id = ?) OR (user1_id = ? AND user2_id = ?)
+    """, (user1_id, user2_id, user2_id, user1_id))
+
+    private_chat = cursor.fetchone()  # Returns (id,) or None
+    conn.close()
+    return private_chat[0] if private_chat else None
+
+
+
+# ----------------------------------------------------------------------------
 # function to get users in a group
 def get_users_in_group(group_id):
     conn = get_db_connection()
@@ -257,370 +404,416 @@ def login():
     cursor.execute("SELECT group_id FROM user_groups WHERE user_id = ?", (user['id'],))
     group = cursor.fetchone()
 
-    if group:
-        session['group_id'] = group['group_id']  # ✅ Store group_id in session
-    else:
-        session['group_id'] = None  # Handle case where user has no group
+    session['group_id'] = group['group_id'] if group else None  # ✅ Store group_id safely
 
-    # Login successful
+    # Store user details in session
     session['user_id'] = user['id']
     session['staffid'] = user['staffid']
     session['firstname'] = user['firstname']
     session['lastname'] = user['lastname']
 
+    # print("Session Data:", dict(session))  # ✅ Debugging: Check if session is set properly
+
     conn.close()
 
     return jsonify({
         'success': True,
-        'redirect': url_for('chat'),
+        'redirect': url_for('chats'),
         'firstname': user['firstname'],
         'staffid': user['staffid'],
-        'group_id': session['group_id']  # ✅ Return group_id to frontend
+        'group_id': session['group_id']
     })
 
 
 # ---------------------------------------------------------------------------
 
-# Chat Page Route
-@app.route('/chat')
-def chat():
-    # Check if the user is logged in
-    if 'user_id' not in session:
-        return redirect(url_for('login'))  # Redirect to login page if not logged in
+@app.route("/chat")
+def chats():
+    if "user_id" not in session:
+        return redirect(url_for("login"))  
 
-    # Retrieve user details from the session
-    user_id = session.get('user_id')
-    staffid = session.get('staffid')
-    firstname = session.get('firstname')
-    lastname = session.get('lastname')
+    user_id = session["user_id"]
+    all_chats = get_user_chats(user_id)
+    
+    formatted_chats = [
+        {
+            "id": chat["id"],
+            "name": chat["name"],
+            "type": chat["type"],
+            "last_message": chat["last_message"] or "No messages yet",
+            "timestamp": chat["timestamp"] if chat["timestamp"] else ""
+        } for chat in all_chats
+    ]
 
-    # ✅ Fetch only groups where the user is a member
-    conn = sqlite3.connect('chatdatabase.db')
-    cursor = conn.cursor()
+    return render_template("chat.html", chats=formatted_chats, firstname=session.get("firstname"), staffid=session.get("staffid"))
 
-    cursor.execute("""
-        SELECT g.id, g.name 
-        FROM groups g
-        JOIN user_groups ug ON g.id = ug.group_id
-        WHERE ug.user_id = ?
-    """, (user_id,))
 
-    groups = cursor.fetchall()
+# ---------------------------------------------------------------------------
 
-    print("User's groups:", groups)  # Debugging output
+@app.route('/chat/<chat_type>/<int:chat_id>')
+def open_chat(chat_type, chat_id):
+    """Render the chat page with messages and chat details."""
+    user_id = session.get("user_id")
+    if not user_id:
+        return redirect(url_for("login"))  # Ensure user is logged in
 
-    conn.close()
+    group = None
+    private_chat = None
+    messages = []
+
+    if chat_type == "group":
+        group = get_group_by_id(chat_id)
+        if not group:
+            return "Group not found", 404
+        messages = get_messages_for_group(chat_id)
+    elif chat_type == "private":
+        private_chat = get_private_chat_by_id(chat_id)  # ✅ Correct function
+        if not private_chat:
+            return "Private chat not found", 404
+        messages = get_messages_for_private_chat(chat_id)
+    else:
+        return "Invalid chat type", 400
 
     return render_template(
-        'chat.html',
+        "chat.html",
         user_id=user_id,
-        staffid=staffid,
-        firstname=firstname,
-        lastname=lastname,
-        groups=groups,  # Send only relevant groups to frontend
-        group_id=session.get('group_id')
+        group=group,
+        private_chat=private_chat,
+        messages=messages,
+        group_id=chat_id if chat_type == "group" else None,
+        private_chat_id=chat_id if chat_type == "private" else None
     )
 
 # ---------------------------------------------------------------------------
 
-# Route for Chat Directorate/Groups
+    
+@app.route('/get_messages/<chat_type>/<int:chat_id>')
+def get_chat_messages(chat_type, chat_id):
+    """Fetch messages for a group or private chat (AJAX request)."""
+    user_id = session.get("user_id")
+    if not user_id:
+        return jsonify({"error": "Unauthorized"}), 401
+    
+    # print(f"Received request: chat_type={chat_type}, chat_id={chat_id}")  # ✅ Debugging
 
-# @app.route('/chat/<int:group_id>')
-# def chat_page(group_id):
-#     if 'user_id' not in session:
-#         return redirect(url_for('login')) 
+    try:
+        if chat_type == "group":
+            messages = get_messages_for_group(chat_id)
+        elif chat_type == "private":
+            messages = get_messages_for_private_chat(chat_id)
+        else:
+            return jsonify({"error": "Invalid chat type"}), 400
 
-#     user_id = session['user_id']
-#     staffid = session.get('staffid')
-#     firstname = session.get('firstname')
+        return jsonify({"messages": messages})
 
-#     # Fetch the group by its ID
-#     group = get_group_by_id(group_id)
-#     if not group:
-#         return "Group not found", 404
-
-#     conn = get_db_connection()
-#     cursor = conn.cursor()
-
-#     # Fetch users in the group
-#     cursor.execute("""
-#         SELECT u.firstname, u.lastname, u.directorate
-#         FROM users u
-#         JOIN user_groups ug ON u.id = ug.user_id
-#         WHERE ug.group_id = ?
-#     """, (group_id,))
-#     users = cursor.fetchall()
-
-#     # Fetch messages properly
-#     cursor.execute("""
-#         SELECT messages.id, messages.user_id, users.firstname, users.lastname, 
-#                messages.message, messages.timestamp
-#         FROM messages
-#         JOIN users ON messages.user_id = users.id
-#         WHERE messages.group_id = ?
-#         ORDER BY messages.timestamp ASC
-#     """, (group_id,))
-#     messages = cursor.fetchall()  # ✅ This is now correct
-
-#     conn.close()
-
-#     return render_template('chat.html', group=group, messages=messages, users=users, 
-#                            user_id=user_id, firstname=firstname, staffid=staffid, 
-#                            format_timestamp=format_timestamp, group_id=group_id)
+    except Exception as e:
+        # print("Error:", str(e))  # Log error
+        return jsonify({"error": "Something went wrong"}), 500
 
 
-@app.route('/chat/<int:group_id>')
-def chat_page(group_id):
-    if 'user_id' not in session:
-        return redirect(url_for('login')) 
+# ---------------------------------------------------------------------------
 
-    user_id = session['user_id']
-    staffid = session.get('staffid')
-    firstname = session.get('firstname')
+
+@app.route("/get_messages")
+def get_messages():
+    chat_id = request.args.get("chat_id", type=int)
+    chat_type = request.args.get("chat_type")
+
+    if not chat_id or chat_type not in ["group", "private"]:
+        return jsonify({"error": "Invalid request"}), 400
 
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    # ✅ Fetch all groups the user belongs to
-    cursor.execute("""
-        SELECT g.id, g.name FROM groups g
-        JOIN user_groups ug ON g.id = ug.group_id
-        WHERE ug.user_id = ?
-    """, (user_id,))
-    groups = cursor.fetchall()  # ✅ Now fetching all groups
+    if chat_type == "group":
+        cursor.execute("""
+            SELECT m.id, m.user_id, u.firstname || ' ' || u.lastname AS sender, 
+                   m.message, m.timestamp  -- ✅ Use m.message instead of m.content
+            FROM messages m
+            JOIN users u ON m.user_id = u.id
+            WHERE m.group_id = ?
+            ORDER BY m.timestamp;
+        """, (chat_id,))
+    else:
+        cursor.execute("""
+            SELECT m.id, m.user_id, u.firstname || ' ' || u.lastname AS sender, 
+                   m.message, m.timestamp  -- ✅ Use m.message instead of m.content
+            FROM messages m
+            JOIN users u ON m.user_id = u.id
+            WHERE m.private_chat_id = ?
+            ORDER BY m.timestamp;
+        """, (chat_id,))
 
-    # ✅ Fetch the selected group
-    cursor.execute("SELECT id, name FROM groups WHERE id = ?", (group_id,))
-    group = cursor.fetchone()
-    if not group:
-        return "Group not found", 404
-
-    # ✅ Fetch users in the selected group
-    cursor.execute("""
-        SELECT u.firstname, u.lastname, u.directorate
-        FROM users u
-        JOIN user_groups ug ON u.id = ug.user_id
-        WHERE ug.group_id = ?
-    """, (group_id,))
-    users = cursor.fetchall()
-
-    # ✅ Fetch messages for the selected group
-    cursor.execute("""
-        SELECT messages.id, messages.user_id, users.firstname, users.lastname, 
-               messages.message, messages.timestamp
-        FROM messages
-        JOIN users ON messages.user_id = users.id
-        WHERE messages.group_id = ?
-        ORDER BY messages.timestamp ASC
-    """, (group_id,))
-    messages = cursor.fetchall()
+    messages = [
+        {
+            "id": row[0],
+            "user_id": row[1],
+            "sender": row[2] if row[2] else "Unknown Sender",
+            "message": row[3] if row[3] and row[3].strip() else "(No content)",  
+            "timestamp": row[4] if row[4] else "Unknown time"
+        }
+        for row in cursor.fetchall()
+    ]
 
     conn.close()
+    return jsonify({"messages": messages})
 
-    return render_template('chat.html', groups=groups, group=group, messages=messages, users=users, 
-                           user_id=user_id, firstname=firstname, staffid=staffid, 
-                           format_timestamp=format_timestamp, group_id=group_id)
 
 
 # ---------------------------------------------------------------------------
-
-# Directorate Group Chats/
-@app.route('/group_chat/<group_name>')
-def group_chat(group_name):
-
-    # Check if the user is logged in
-    if 'user_id' not in session:
-        return redirect(url_for('login'))  # Redirect to login if not logged in
-
-    user_id = session['user_id'] 
-    # user_id = session.get('user_id')
-    staffid = session.get('staffid')
-    firstname = session.get('firstname') # Get user_id from session
-
-    conn = get_db_connection()
-    
-    # Fetch the group details
-    group = conn.execute("SELECT * FROM groups WHERE name = ?", (group_name,)).fetchone()
-
-    if not group:
-        conn.close()
-        return "Group not found", 404  # Prevents 'group' being undefined
-    
-    group_id = group["id"]
-
-    # Fetch messages for this group
-    messages = conn.execute(
-        """SELECT messages.message, users.firstname, users.lastname 
-           FROM messages 
-           JOIN users ON messages.user_id = users.id 
-           WHERE messages.group_id = ? 
-           ORDER BY messages.id ASC""",
-        (group_id,)
-    ).fetchall()
-    
-    # Fetch users in this group
-    users_in_group = conn.execute(
-        """SELECT users.id, users.firstname, users.lastname 
-           FROM users 
-           JOIN user_groups ON users.id = user_groups.user_id 
-           WHERE user_groups.group_id = ?""",
-        (group_id,)
-    ).fetchall()
-    
-    conn.close()
-
-    return render_template('chat.html', group=dict(group), messages=messages, users=users_in_group, user_id=user_id, firstname=firstname, staffid=staffid)
-
-# ---------------------------------------------------------------------------
-
-
 
 @app.route('/send_message', methods=['POST'])
 def send_message():
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+
     data = request.get_json()
-    
-    print("Received data:", data)  # Debugging
+    chat_id = data.get("chat_id")
+    chat_type = data.get("chat_type")
+    message_text = data.get("message")
 
-    # Ensure the request payload is valid JSON
-    if not isinstance(data, dict):
-        print("⚠️ Error: Request data is not JSON")
-        return jsonify({'success': False, 'error': 'Invalid request format'}), 400
+    if not chat_id or not message_text or chat_type not in ["group", "private"]:
+        return jsonify({'success': False, 'error': 'Invalid data'}), 400
 
-    message = data.get('message')
-    group_id = data.get('group_id')
-    user_id = session.get('user_id')  # Get logged-in user from session
+    user_id = session["user_id"]
+    timestamp = datetime.now().strftime("%H:%M")
 
-    print(f"Session User ID: {user_id}, Group ID: {group_id}, Message: {message}")  # Debugging
+    conn = get_db_connection()
+    cursor = conn.cursor()
 
-    # Check if user is logged in
-    if not user_id:
-        print("⚠️ Error: User not logged in")
-        return jsonify({'success': False, 'error': 'User not logged in'}), 403  # Unauthorized
+    if chat_type == "group":
+        cursor.execute("INSERT INTO messages (group_id, user_id, message, timestamp) VALUES (?, ?, ?, ?)",
+                       (chat_id, user_id, message_text, timestamp))
+    else:
+        cursor.execute("INSERT INTO messages (private_chat_id, user_id, message, timestamp) VALUES (?, ?, ?, ?)",
+                       (chat_id, user_id, message_text, timestamp))
 
-    # Ensure message and group_id are present
-    if message is None or group_id is None:
-        print("⚠️ Error: Missing message or group_id")
-        return jsonify({'success': False, 'error': 'Missing message or group_id'}), 400
+    conn.commit()
+    conn.close()
 
-    # Ensure group_id is an integer
+    return jsonify({'success': True, 'message': 'Message sent successfully', 'timestamp': timestamp})
+
+
+
+
+@socketio.on("send_group_message")
+def handle_group_message(data):
     try:
-        group_id = int(group_id)
-    except (TypeError, ValueError):
-        print("⚠️ Error: Invalid group_id format")
-        return jsonify({'success': False, 'error': 'Invalid group_id format'}), 400
+        print(f"📥 Received group message data: {data}")  # Log when the function is triggered
 
-    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        chat_id = data.get("chat_id")
+        message = data.get("message")
+        user_id = session.get("user_id")
 
-    try:
+        if not user_id:
+            print("❌ ERROR: No user ID found in session")
+            return
+
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        # Store message in the database
-        cursor.execute('''
-            INSERT INTO messages (user_id, group_id, message, timestamp)
-            VALUES (?, ?, ?, ?)
-        ''', (user_id, group_id, message, timestamp))
+        cursor.execute("""
+            INSERT INTO messages (user_id, group_id, message) VALUES (?, ?, ?)
+        """, (user_id, chat_id, message))
         conn.commit()
-        print("✅ Message successfully saved to database!")  # Debugging
 
-        # Fetch sender details
-        cursor.execute('SELECT firstname, lastname FROM users WHERE id = ?', (user_id,))
-        sender = cursor.fetchone()
-        sender_name = f"{sender[0]} {sender[1]}" if sender else "Unknown"
+        cursor.execute("SELECT firstname, lastname FROM users WHERE id = ?", (user_id,))
+        user = cursor.fetchone()
+        sender_name = f"{user['firstname']} {user['lastname']}" if user else "Unknown"
 
-        # Emit message via WebSocket
-        socketio.emit('receive_message', {
-            'message': message,
-            'group_id': group_id,
-            'user_id': user_id,
-            'sender_name': sender_name,
-            'timestamp': timestamp
-        }, room=group_id)
+        conn.close()
 
-        return jsonify({'success': True, 'message': message, 'timestamp': timestamp})
+        print(f"✅ Message stored in database: {message} from {sender_name}")  # Log when message is stored
+
+        # Now, try to emit the message
+        print(f"🚀 Attempting to emit message to group {chat_id}")
+
+        emit("receive_message", {
+            "chat_id": chat_id,
+            "chat_type": "group",
+            "user_id": user_id,
+            "sender_name": sender_name,
+            "message": message,
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        }, room=str(chat_id))
+
+        print(f"✅ Message emitted successfully!")
 
     except Exception as e:
-        print(f"❌ ERROR: {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500  # Internal Server Error
-
-    finally:
-        conn.close()  # Ensure DB connection is closed
+        print(f"❌ ERROR: Failed to handle group message - {str(e)}")
 
 
 
-@socketio.on('send_message')
-def handle_send_message(data):
-    """Handle real-time messages via WebSocket."""
-    print(f"DEBUG: Received send_message event with data: {data}")  
 
-    message = data.get('message', '').strip()  # Ensure message is not empty
-    group_id = data.get('group_id')
-    user_id = data.get('user_id')
-    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
-    if not message or not group_id or not user_id:
-        print("ERROR: Invalid message data received, ignoring event.")
-        return
-
-    conn = None
+@socketio.on("send_private_message")
+def handle_private_message(data):
     try:
-        # Save message in database
+        chat_id = data.get("chat_id")
+        message = data.get("message")
+        user_id = session.get("user_id")  # Fetch user_id from session
+
+        if not chat_id or not message or not user_id:
+            print(f"ERROR: Invalid data received - {data}")
+            return
+
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute('''
-            INSERT INTO messages (user_id, group_id, message, timestamp)
-            VALUES (?, ?, ?, ?)
-        ''', (user_id, group_id, message, timestamp))
+
+        # Insert message into the database
+        cursor.execute("""
+            INSERT INTO messages (user_id, private_chat_id, message) VALUES (?, ?, ?)
+        """, (user_id, chat_id, message))
         conn.commit()
-        print("DEBUG: Message stored successfully.")
 
-        # Fetch sender details
-        cursor.execute('SELECT firstname, lastname FROM users WHERE id = ?', (user_id,))
-        sender = cursor.fetchone()
-        sender_name = f"{sender[0]} {sender[1]}" if sender else "Unknown"
+        # Fetch sender's name
+        cursor.execute("SELECT firstname, lastname FROM users WHERE id = ?", (user_id,))
+        user = cursor.fetchone()
+        sender_name = f"{user['firstname']} {user['lastname']}" if user else "Unknown User"
 
-        # Broadcast message to group
-        emit('receive_message', {
-            'message': message,
-            'group_id': group_id,
-            'user_id': user_id,
-            'sender_name': sender_name,
-            'timestamp': timestamp
-        }, room=group_id, broadcast=True)
-        print("DEBUG: Message emitted successfully.")
+        conn.close()
+
+        print(f"✅ EMITTING MESSAGE: {message} from {sender_name} to group {chat_id}")  # Debugging line
+
+
+        # Emit message to the chat room
+        emit("receive_message", {
+            "chat_id": chat_id,
+            "chat_type": "private",
+            "user_id": user_id,
+            "sender_name": sender_name,
+            "message": message,
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # Use a standard timestamp format
+        }, room=str(chat_id))
 
     except Exception as e:
-        print(f"ERROR: Exception occurred: {str(e)}")
-        emit('error', {'error': str(e)})  # Notify client about the error
-
-    finally:
-        if conn:
-            conn.close()  # Ensure DB connection is closed
+        print(f"ERROR: Failed to handle private message - {str(e)}")
 
 
-@socketio.on('join_group')
+@socketio.on("join_group")
 def handle_join_group(data):
-    """Handle user joining a group."""
-    print(f"DEBUG: Received join_group event with data: {data}")  
-    group_id = data.get('group_id')
+    group_id = data.get("group_id")
+    join_room(str(group_id))
+    print(f"User joined group: {group_id}")
 
-    if not group_id:
-        print("ERROR: Invalid group_id received, ignoring event.")
-        return
-
-    join_room(group_id)
-    print(f"DEBUG: User joined group {group_id}")
-
-    emit('user_joined', {'group_id': group_id}, room=group_id)
-    print(f"DEBUG: Emitted user_joined event to group {group_id}.")
-
+@socketio.on("join_private_chat")
+def handle_join_private_chat(data):
+    chat_id = data.get("chat_id")
+    join_room(str(chat_id))
+    print(f"User joined private chat: {chat_id}")
 
 
 # ---------------------------------------------------------------------------
+# search bar
+@app.route("/search_users")
+def search_users():
+    query = request.args.get("query", "").strip()
+    user_id = session.get("user_id")  # Get logged-in user ID
+
+    if len(query) < 2:
+        return jsonify([])  # Return empty list if query is too short
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute(
+        "SELECT id, firstname, lastname, staffid FROM users "
+        "WHERE (firstname LIKE ? OR lastname LIKE ? OR staffid LIKE ?) AND id != ?",
+        (f"%{query}%", f"%{query}%", f"%{query}%", user_id)
+    )
+
+    users = cursor.fetchall()
+    conn.close()
+
+    # Convert results to a list of dictionaries
+    user_list = [
+        {
+            "id": user["id"],
+            "firstname": user["firstname"],
+            "lastname": user["lastname"],
+            "staffid": user["staffid"],
+        }
+        for user in users
+    ]
+
+    return jsonify(user_list)
+
+
+
+
+
+@app.route('/start_private_chat', methods=['POST'])
+def start_private_chat():
+    user1_id = session.get("user_id")  # Logged-in user
+    user2_id = request.json.get("user_id")  # Selected user
+
+    if not user1_id or not user2_id:
+        return jsonify({"error": "Invalid users"}), 400
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    # Check if chat already exists
+    cursor.execute(
+        "SELECT id FROM private_chats WHERE (user1_id = ? AND user2_id = ?) OR (user1_id = ? AND user2_id = ?)",
+        (user1_id, user2_id, user2_id, user1_id),
+    )
+    chat = cursor.fetchone()
+
+    if chat:
+        chat_id = chat["id"]
+    else:
+        # Create new private chat
+        cursor.execute(
+            "INSERT INTO private_chats (user1_id, user2_id) VALUES (?, ?)",
+            (user1_id, user2_id),
+        )
+        conn.commit()
+        chat_id = cursor.lastrowid
+
+    conn.close()
+
+    return jsonify({"chat_id": chat_id, "user_id": user2_id})
+
+
+# ------------------------------
+
+@app.route('/get_session_data', methods=['GET'])
+def get_session_data():
+    """Returns the logged-in user's session data to the frontend."""
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'error': 'Not logged in'}), 403
+
+    return jsonify({
+        'success': True,
+        'user_id': session.get('user_id'),
+        'firstname': session.get('firstname'),
+        'lastname': session.get('lastname'),
+        'staffid': session.get('staffid'),
+        'group_id': session.get('group_id')
+    })
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
 
 # Start Application
 if __name__ == '__main__':
-    socketio.run(app, host='0.0.0.0', port=5005)
+    socketio.run(app, host='0.0.0.0', port=5005, debug=True)

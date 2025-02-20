@@ -11,7 +11,7 @@ formRegister.addEventListener('submit', async function (e) {
     const directorate = document.getElementById('directorate').value;
     const password = document.getElementById('password').value;
     const con_password = document.getElementById('con_password').value;
-
+    
     // Error Text
     document.getElementById('staffidError').textContent = "";
     document.getElementById('fnameError').textContent = "";

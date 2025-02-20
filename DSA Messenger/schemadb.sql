@@ -27,10 +27,24 @@ CREATE TABLE IF NOT EXISTS user_groups (
 
 CREATE TABLE IF NOT EXISTS messages (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER,  -- Sender of the message
-    group_id INTEGER, -- The group the message belongs to
+    user_id INTEGER NOT NULL,  -- Sender of the message
+    group_id INTEGER,          -- ✅ Link to group chat (NULL if private)
+    private_chat_id INTEGER,   -- ✅ Link to private chat (NULL if group)
     message TEXT NOT NULL,
     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id),
-    FOREIGN KEY (group_id) REFERENCES groups(id)
+    FOREIGN KEY (group_id) REFERENCES groups(id),
+    FOREIGN KEY (private_chat_id) REFERENCES private_chats(id),
+    CHECK (group_id IS NOT NULL OR private_chat_id IS NOT NULL)  -- ✅ Ensure message belongs to at least one chat
 );
+
+
+CREATE TABLE IF NOT EXISTS private_chats (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user1_id INTEGER NOT NULL,  -- One user
+    user2_id INTEGER NOT NULL,  -- The other user
+    UNIQUE(user1_id, user2_id), -- ✅ Prevent duplicate chat creation
+    FOREIGN KEY (user1_id) REFERENCES users(id),
+    FOREIGN KEY (user2_id) REFERENCES users(id)
+);
+
