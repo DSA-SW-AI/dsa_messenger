@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Page </title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css')}}" />
+</head>
+
+<body>
+
+    <div class="login-card">
+        <div class="brand">
+            <div class="brand-logo">
+                <img src="{{ url_for('static', filename='images/dsa-logo.jfif') }}" alt="DSA Logo">
+            </div>
+            <p>Create your account</p>
+        </div>
+        <form id="signupForm" action="/submit_register" method="POST" enctype="multipart/form-data">
+            <div class="form-group">
+                <label for="staffid">Staff ID</label>
+                <input type="text" value="" id="staffid" name="staffid" placeholder="Enter your Staff ID">
+                <div class="error" id="staffidError"></div>
+            </div>
+
+            <div class="form-group">
+                <label for="fname">First Name</label>
+                <input type="text" id="fname" name="fname" placeholder="Enter first name">
+                <div class="error" id="fnameError"></div>
+            </div>
+
+            <div class="form-group">
+                <label for="lname">Last Name</label>
+                <input type="text" id="lname" name="lname" placeholder="Enter last name">
+                <div class="error" id="lnameError"></div>
+            </div>
+
+            <div class="form-group">
+                <label for="directorate">Directorate</label>
+                <select name="group_id" id="group_id">
+                    {% for group in groups %}
+                    <option value="{{ group._id }}">{{ group.name }}</option>
+                    {% endfor %}
+                </select>
+                <div class="error" id="directorateError"></div>
+            </div>
+
+            <div class="form-group">
+                <label for="directorate">Profile Picture</label>
+                <input type="file" id="profile_picture" name="profile_picture" placeholder="">
+                <div class="error" id="profile_pictureError"></div>
+            </div>
+
+            <div class="form-group">
+                <label for="password">Create Password</label>
+                <input type="password" id="password" name="password" placeholder="Create New Password">
+                <div class="error" id="passwordError"></div>
+            </div>
+
+            <div class="form-group">
+                <label for="con_password">Confirm Password</label>
+                <input type="password" id="con_password" name="con_password" placeholder="Retype Password">
+                <div class="error" id="con_passwordError"></div>
+            </div>
+
+            <button type="submit" class="login-btn" id="loginButton">
+                Sign up
+            </button>
+        </form>
+
+        <div class="signup-link">
+            <p>Already have an account? <a href="/login">Signin</a></p>
+        </div>
+    </div>
+
+    <!--  Ensure the script is linked correctly -->
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+
+
+</body>
+
+</html>
