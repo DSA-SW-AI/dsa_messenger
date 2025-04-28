@@ -11,13 +11,12 @@ import os
 
 
 
-
 # MongoDB connection string
-mongo_client = "mongodb+srv://udofiaubong10:qAWzNlJT6x2vSCdb@dsamessenger.tqp9u.mongodb.net"
+mongo_client = "mongodb://localhost:27017/chatDatabase"
 
 try:
     # Connect to MongoDB with SSL certification
-    client = MongoClient(mongo_client, tlsCAFile=certifi.where())  # Use MongoClient correctly
+    client = MongoClient(mongo_client)  # Use MongoClient correctly
 
     # Get the database
     chat_db = client.get_database("chatDatabase")
@@ -32,29 +31,152 @@ except Exception as e:
 
 
 
+
+
+# =============================================================================
+
+from pymongo import MongoClient
+
+# MongoDB connection string
+mongo_client = "mongodb://localhost:27017/chatDatabase"
+chat_db = client.get_database("chatDatabase")
+# collection = chat_db["security_questions"]
+
+# List of security questions
+# questions = [
+#     "What was the name of your first pet?",
+#     "What is the name of the street you grew up on?",
+#     "What was the model of your first car?",
+#     "What was your childhood nickname?",
+#     "What school did you attend for sixth grade?",
+#     "What was the name of your elementary school?",
+#     "What is your mother’s maiden name?",
+#     "What is the name of your oldest cousin?",
+#     "What is your father’s middle name?",
+#     "What was the name of your first teacher?",
+#     "What was the name of your best friend in childhood?",
+#     "In what city were you born?",
+#     "What year did you graduate high school?",
+#     "What was the destination of your first flight?",
+#     "What is the month and year of your oldest sibling’s birthday?",
+#     "What is your favorite movie?",
+#     "What is your favorite book as a child?",
+#     "What is your favorite food?",
+#     "What was your favorite subject in school?",
+#     "What is your dream job?",
+#     "What was the first website you remember visiting?",
+#     "What is the name of your favorite childhood toy?",
+#     "Who was your favorite cartoon character growing up?",
+#     "What was the name of the first concert you attended?",
+#     "What was your first job?"
+# ]
+
+# # Prepare documents
+# documents = [{"question": q} for q in questions]
+
+# # Insert into the collection
+# result = collection.insert_many(documents)
+# print(f"Inserted {len(result.inserted_ids)} security questions.")
+
+
+# ============================================================================
+
+users_collection = chat_db['users']
+
+# Update all users that don't have security_question and security_answer fields
+result = users_collection.update_many(
+    {
+        "$or": [
+            {"security_question": {"$exists": False}},
+            {"security_answer": {"$exists": False}}
+        ]
+    },
+    {
+        "$set": {
+            "security_question": "",
+            "security_answer": ""
+        }
+    }
+)
+
+print(f"Updated {result.modified_count} user(s) with empty security fields.")
+
+
+
+
+# ==============================================================================
+
+
+
+
+
 # Connect to SQLite
 # sqlite_conn = sqlite3.connect("chatdatabase.db")
 # sqlite_cursor = sqlite_conn.cursor()
 
 
 
-# Connect to MongoDB with GridFS
-mongo_client = MongoClient("mongodb+srv://udofiaubong10:qAWzNlJT6x2vSCdb@dsamessenger.tqp9u.mongodb.net", tlsCAFile=certifi.where())
-mongo_db = mongo_client["chatDatabase"]
-groups_collection = mongo_db["groups"]
-fs = gridfs.GridFS(mongo_db)
 
 
-# Define a default image ID or URL
-default_image_url = "/static/images/dsa-logo.png"  # Default image URL
+#     # Get the database
+# chat_db = client.get_database("chatDatabase")
+# messages_collection = chat_db["messages"]
 
-# Update all groups to include an image field
-result = groups_collection.update_many(
-    {},  # Empty filter means update all documents
-    {"$set": {"image": default_image_url}}  # Set default image field
-)
+# # Add is_read field to all messages that don't have it
+# result = messages_collection.update_many(
+#     {"is_read": {"$exists": False}},  # Target only documents that lack this field
+#     {"$set": {"is_read": False}}
+# )
 
-print(f"Updated {result.modified_count} groups with an image field.")
+# print(f"Updated {result.modified_count} messages with is_read=False.")
+
+
+
+
+
+
+
+
+
+
+# # Connect to MongoDB with GridFS
+# mongo_client = MongoClient("mongodb+srv://udofiaubong10:qAWzNlJT6x2vSCdb@dsamessenger.tqp9u.mongodb.net", tlsCAFile=certifi.where())
+# mongo_db = mongo_client["chatDatabase"]
+# fs = gridfs.GridFS(mongo_db)
+
+# # Create indexes for faster message retrieval
+# mongo_db.messages.create_index([("group_id", 1)])
+# mongo_db.messages.create_index([("private_chat_id", 1)])
+# mongo_db.messages.create_index([("timestamp", -1)])
+
+# print("✅ Indexes created successfully!")
+
+
+
+
+
+
+
+
+
+
+
+
+
+# groups_collection = mongo_db["groups"]
+# fs = gridfs.GridFS(mongo_db)
+
+
+# # Define a default image ID or URL
+# default_image_url = "/static/images/dsa-logo.png"  # Default image URL
+
+# # Update all groups to include an image field
+# result = groups_collection.update_many(
+#     {},  # Empty filter means update all documents
+#     {"$set": {"image": default_image_url}}  # Set default image field
+# )
+
+# print(f"Updated {result.modified_count} groups with an image field.")
 
 
 

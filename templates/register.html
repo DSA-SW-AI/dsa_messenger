@@ -9,75 +9,95 @@
 </head>
 
 <body>
+    <div class="chat-body">
+        <div class="login-card">
+            <div class="brand">
+                <div class="brand-logo">
+                    <img src="{{ url_for('static', filename='images/dsa-logo.jfif') }}" alt="DSA Logo">
+                </div>
+                <p>Create your account</p>
 
-    <div class="login-card">
-        <div class="brand">
-            <div class="brand-logo">
-                <img src="{{ url_for('static', filename='images/dsa-logo.jfif') }}" alt="DSA Logo">
             </div>
-            <p>Create your account</p>
-        </div>
-        <form id="signupForm" action="/submit_register" method="POST" enctype="multipart/form-data">
-            <div class="form-group">
-                <label for="staffid">Staff ID</label>
-                <input type="text" value="" id="staffid" name="staffid" placeholder="Enter your Staff ID">
-                <div class="error" id="staffidError"></div>
+            <form id="signupForm" action="/submit_register" method="POST" enctype="multipart/form-data">
+                <div class="form-group">
+                    <label for="staffid">Staff ID</label>
+                    <input type="text" value="" id="staffid" name="staffid" placeholder="Enter your Staff ID">
+                    <div class="error" id="staffidError"></div>
+                </div>
+
+                <div class="form-group">
+                    <label for="fname">First Name</label>
+                    <input type="text" id="fname" name="fname" placeholder="Enter first name">
+                    <div class="error" id="fnameError"></div>
+                </div>
+
+                <div class="form-group">
+                    <label for="lname">Last Name</label>
+                    <input type="text" id="lname" name="lname" placeholder="Enter last name">
+                    <div class="error" id="lnameError"></div>
+                </div>
+
+                <div class="form-group">
+                    <label for="directorate">Directorate</label>
+                    <select name="group_id" id="group_id">
+                        <option value="">Select your Directorate</option>
+                        {% for group in groups %}
+                        <option value="{{ group._id }}">{{ group.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <div class="error" id="directorateError"></div>
+                </div>
+
+                <div class="form-group">
+                    <label for="directorate">Profile Picture</label>
+                    <input type="file" id="profile_picture" name="profile_picture" placeholder="">
+                    <div class="error" id="profile_pictureError"></div>
+                </div>
+
+                <div class="form-group">
+                    <label for="security_question">Security Question</label>
+                    <select name="security_question" id="security_question">
+
+                        <option value="">Choose a Security Question</option>
+                        {% for question in questions %}
+                        <option value="{{ question }}">{{ question }}</option>
+                        {% endfor %}
+                    </select>
+                    <div class="error" id="security_questionError"></div>
+                </div>
+
+                <div class="form-group">
+                    <label for="security_answer">Answer</label>
+                    <input type="text" id="security_answer" name="security_answer" placeholder="Type your answer">
+                    <div class="error" id="security_answerError"></div>
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Create Password</label>
+                    <input type="password" id="password" name="password" placeholder="Create New Password">
+                    <div class="error" id="passwordError"></div>
+                </div>
+
+                <div class="form-group">
+                    <label for="con_password">Confirm Password</label>
+                    <input type="password" id="con_password" name="con_password" placeholder="Retype Password">
+                    <div class="error" id="con_passwordError"></div>
+                </div>
+
+                <button type="submit" class="login-btn" id="loginButton">
+                    Sign up
+                </button>
+            </form>
+
+            <div class="signup-link">
+                <p>Already have an account? <a href="/login">Signin</a></p>
             </div>
 
-            <div class="form-group">
-                <label for="fname">First Name</label>
-                <input type="text" id="fname" name="fname" placeholder="Enter first name">
-                <div class="error" id="fnameError"></div>
-            </div>
-
-            <div class="form-group">
-                <label for="lname">Last Name</label>
-                <input type="text" id="lname" name="lname" placeholder="Enter last name">
-                <div class="error" id="lnameError"></div>
-            </div>
-
-            <div class="form-group">
-                <label for="directorate">Directorate</label>
-                <select name="group_id" id="group_id">
-                    {% for group in groups %}
-                    <option value="{{ group._id }}">{{ group.name }}</option>
-                    {% endfor %}
-                </select>
-                <div class="error" id="directorateError"></div>
-            </div>
-
-            <div class="form-group">
-                <label for="directorate">Profile Picture</label>
-                <input type="file" id="profile_picture" name="profile_picture" placeholder="">
-                <div class="error" id="profile_pictureError"></div>
-            </div>
-
-            <div class="form-group">
-                <label for="password">Create Password</label>
-                <input type="password" id="password" name="password" placeholder="Create New Password">
-                <div class="error" id="passwordError"></div>
-            </div>
-
-            <div class="form-group">
-                <label for="con_password">Confirm Password</label>
-                <input type="password" id="con_password" name="con_password" placeholder="Retype Password">
-                <div class="error" id="con_passwordError"></div>
-            </div>
-
-            <button type="submit" class="login-btn" id="loginButton">
-                Sign up
-            </button>
-        </form>
-
-        <div class="signup-link">
-            <p>Already have an account? <a href="/login">Signin</a></p>
+            <div id="flash-messages"></div>
         </div>
     </div>
-
     <!--  Ensure the script is linked correctly -->
     <script src="{{ url_for('static', filename='script.js') }}"></script>
-
-
 </body>
 
 </html>

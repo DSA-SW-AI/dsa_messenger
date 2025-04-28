@@ -12,6 +12,8 @@ formRegister.addEventListener('submit', async function (e) {
     const profile_picture = document.getElementById('profile_picture').files[0];
     const password = document.getElementById('password').value;
     const con_password = document.getElementById('con_password').value;
+    const security_question = document.getElementById('security_question').value;
+    const security_answer = document.getElementById('security_answer').value;
 
     // Error Text
     document.getElementById('staffidError').textContent = "";
@@ -21,6 +23,8 @@ formRegister.addEventListener('submit', async function (e) {
     document.getElementById('profile_pictureError').textContent = "";
     document.getElementById('passwordError').textContent = "";
     document.getElementById('con_passwordError').textContent = "";
+    document.getElementById('security_questionError').textContent = "";
+    document.getElementById('security_answerError').textContent = "";
 
     let hasError = false;
 
@@ -38,6 +42,14 @@ formRegister.addEventListener('submit', async function (e) {
     }
     if (!directorate) {
         document.getElementById('directorateError').textContent = 'Directorate cannot be empty';
+        hasError = true;
+    }
+    if (!security_question) {
+        document.getElementById('security_questionError').textContent = 'Choose your security question';
+        hasError = true;
+    }
+    if (!security_answer) {
+        document.getElementById('security_answerError').textContent = 'Security Answer cannot be empty';
         hasError = true;
     }
     if (!profile_picture) {
@@ -71,8 +83,6 @@ formRegister.addEventListener('submit', async function (e) {
 
     if (!hasError) {
         try {
-
-            // Create FormData object for file upload
             const formData = new FormData();
             formData.append('staffid', staffid);
             formData.append('fname', fname);
@@ -81,6 +91,8 @@ formRegister.addEventListener('submit', async function (e) {
             formData.append('profile_picture', profile_picture); // File upload
             formData.append('password', password);
             formData.append('con_password', con_password);
+            formData.append('security_question', security_question);
+            formData.append('security_answer', security_answer);
 
             const response = await fetch('/submit_register', {
                 method: 'POST',
@@ -88,18 +100,43 @@ formRegister.addEventListener('submit', async function (e) {
             });
 
             const result = await response.json();
-            console.log("Server response:", result); // Log response for debugging
+            console.log("Server response:", result);
 
+            // Display flash message
             if (result.success) {
-                alert('Registration successful!');
-                window.location.href = '/login';
+                showFlashMessage(result.message, 'success');
+                // Redirect to login after successful registration
+                setTimeout(() => {
+                    window.location.href = '/login'; // Redirect after 5 seconds (adjust if needed)
+                }, 5000); // Wait for 5 seconds before redirecting
             } else {
-                alert('Registration failed: ' + result.error);
+                showFlashMessage(result.message, 'error');
             }
+
         } catch (error) {
             console.error('Fetch error:', error);
-            alert('An error occurred while submitting the form.');
+            showFlashMessage('An error occurred while submitting the form.', 'error');
         }
     }
+
+    // Function to show flash message
+    function showFlashMessage(message, type) {
+        const flashContainer = document.getElementById('flash-messages');
+
+        // Create the flash message element
+        const flashMessage = document.createElement('div');
+        flashMessage.classList.add('flash', type);
+        flashMessage.textContent = message;
+
+        // Append it to the container
+        flashContainer.appendChild(flashMessage);
+
+        // Fade out and remove the flash message after 5 seconds
+        setTimeout(() => {
+            flashMessage.style.opacity = '0';
+            setTimeout(() => flashMessage.remove(), 500);
+        }, 5000);
+    }
+
 
 });

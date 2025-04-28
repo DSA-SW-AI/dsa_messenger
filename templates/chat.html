@@ -3,12 +3,12 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DSA Messenger Chat</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css')}}" />
     <link href="https://cdn.jsdelivr.net/npm/remixicon@3.2.0/fonts/remixicon.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css')}}" />
     <link rel="stylesheet" href="{{ url_for('static', filename='tailwindcss-colors.css')}}" />
+    <title>Chat</title>
+
 </head>
 
 <body>
@@ -19,25 +19,24 @@
             <!-- start: Sidebar -->
             <aside class="chat-sidebar">
                 <a href="#" class="chat-sidebar-logo">
-                    <!-- <i class="ri-chat-1-fill"></i> -->
                     <img id="" style="width: 50px; height: 50px;"
                         src="{{ url_for('static', filename='images/dsa-logo.jfif') }}" alt="Chat Imag">
-                    <ul class="chat-sidebar-menu">
-                        <li class="active"><a href="#" data-title="Chats"><i class="ri-chat-3-line"></i></a></li>
-                        <li><a href="#" data-title="Contacts"><i class="ri-contacts-line"></i></a></li>
-                        <li><a href="#" data-title="Documents"><i class="ri-folder-line"></i></a></li>
-                        <li><a href="#" data-title="Settings"><i class="ri-settings-line"></i></a></li>
-                        <li class="chat-sidebar-profile">
-                            <button type="button" class="chat-sidebar-profile-toggle">
-                                <img src="/profile_picture/{{ user_id }}" alt="Profile Picture">
-                            </button>
-                            <ul class="chat-sidebar-profile-dropdown">
-                                <li><a href="/profile"><i class="ri-user-line"></i>Welcome {{ firstname }}!</a></li>
-                                <li><a href="/logout"><i class="ri-logout-box-line"></i> Logout</a></li>
-                            </ul>
-                        </li>
-
-                    </ul>
+                </a>
+                <ul class="chat-sidebar-menu">
+                    <li class="active"><a href="#" data-title="Chats"><i class="ri-chat-3-line"></i></a></li>
+                    <li><a href="#" data-title="Contacts"><i class="ri-contacts-line"></i></a></li>
+                    <li><a href="#" data-title="Documents"><i class="ri-folder-line"></i></a></li>
+                    <li><a href="#" data-title="Settings"><i class="ri-settings-line"></i></a></li>
+                    <li class="chat-sidebar-profile">
+                        <button type="button" class="chat-sidebar-profile-toggle">
+                            <img src="/profile_picture/{{ user_id }}" alt="Profile Picture">
+                        </button>
+                        <ul class="chat-sidebar-profile-dropdown">
+                            <li><a href="/profile"><i class="ri-user-line"></i>Welcome, {{ firstname }}!</a></li>
+                            <li><a href="/logout"><i class="ri-logout-box-line"></i> Logout</a></li>
+                        </ul>
+                    </li>
+                </ul>
             </aside>
             <!-- end: Sidebar -->
             <!-- start: Content -->
@@ -45,61 +44,96 @@
                 <!-- start: Content side -->
                 <div class="content-sidebar">
                     <div class="content-sidebar-title">DSA MESSENGER</div>
-
                     <!-- USER SEARCH START HERE  -->
-
                     <div class="search_chat">
                         <div>
-                            <input type="text" id="searchInput" placeholder="Search by Staff ID or name"
+                            <input type="text" id="searchInput" placeholder="Search Staff ID or name"
                                 onkeyup="searchUser()">
                             <ion-icon name="search-outline"></ion-icon>
                         </div>
-
                     </div>
                     <div id="searchResults" class="search-results"></div>
-
                     <!-- USER SEARCH ENDS HERE  -->
 
                     <!-- CHAT LIST STARTS -->
-
                     <div class="content-messages" id="chat-list">
                         <ul class="content-messages-list">
-                            <li>
-                                {% if chats %}
-                                {% for chat in chats %}
-                                <a href="{{ url_for('open_chat', 
-                                chat_type=chat.type, 
-                                chat_id=chat.id) }}" class="chat-item" data-conversation="#conversation-1"
-                                    data-chat-id="{{ chat.id }}" data-chat-type="{{ chat.type }}"
-                                    style="text-decoration: none; color: black;"
+                            {% if chats %}
+                            {% for chat in chats %}
+                            <li class="chat-item-list">
+
+                                <a href="{{ url_for('open_chat', chat_type=chat.type, chat_id=chat.id) }}"
+                                    class="chat-item" data-conversation="#conversation-1" data-chat-id="{{ chat.id }}"
+                                    data-chat-type="{{ chat.type }}" style="text-decoration: none; color: black;"
                                     onclick="updateChatHeader('{{ chat.name }}');">
 
+                                    <div class="chat-content-list">
+                                        <img class="content-message-image" src="{{ chat.image }}" alt="Chat Image"
+                                            onerror="this.src='/static/images/default-profile.png';">
 
-                                    <img class="content-message-image" src="{{ chat.image }}" alt="Chat Image"
-                                        onerror="this.src='/static/images/default-profile.png';">
-
-
-
-                                    <span class="content-message-info">
-                                        <span class="content-message-name">{{ chat.name }}</span>
-                                        <span class="content-message-text">{{ chat.last_message }}</span>
-                                    </span>
-                                    <span class="content-message-more">
-                                        <span class="content-message-time">
-                                            {% if chat.timestamp %}{{ chat.timestamp }}{% else %}-{% endif %}
-                                        </span>
-                                    </span>
+                                        <div class="chat-details content-message-info">
+                                            <span class="content-message-name">{{ chat.name }}</span>
+                                            <!-- <span class="content-message-text" title="{{ chat.last_message }}">{{ chat.last_message[:10] ~ ('...' if chat.last_message|length > 10 else '') }}</span> -->
+                                            <div class="tooltip-wrapper">
+                                                <span class="content-message-text">
+                                                    {{ chat.last_message[:10] ~ ('...' if chat.last_message|length > 10
+                                                    else '') }}
+                                                </span>
+                                                {% if chat.last_message|length > 10 %}
+                                                <div class="custom-tooltip">{{ chat.last_message }}</div>
+                                                {% endif %}
+                                            </div>
+                                            <div class="content-message-more">
+                                                {% if chat.unread_count > 0 %}
+                                                <span class="content-message-unread">{{ chat.unread_count }}</span>
+                                                {% endif %}
+                                                <span class="content-message-time">
+                                                    {% if chat.timestamp %}{{ chat.timestamp }}{% else %}-{% endif %}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </a>
-                                {% endfor %}
-                                {% else %}
-                                <p>No chats available</p>
-                                {% endif %}
+
+                                <!-- Chat Options Menu (Three Dots at Right) -->
+                                <div class="chat-options">
+                                    <button type="button" class="menu-btn" onclick="toggleMenu(this)">
+                                        <i class="ri-more-2-line"></i>
+                                    </button>
+                                    <ul class="chat-dropdown-menu">
+                                        <li><a href="#" class="chat-dropdown-item"
+                                                onclick="deleteChat('{{ chat.id }}', this)">
+                                                <i class="ri-delete-bin-line"></i> Delete
+                                            </a>
+                                        </li>
+                                        <hr>
+                                        <li><a href="#" class="chat-dropdown-item"
+                                                onclick="archiveChat('{{ chat.id }}', this)">
+                                                <i class="ri-inbox-archive-line"></i> Archive
+                                            </a>
+                                        </li>
+                                        <hr>
+                                        <li><a href="#" class="chat-dropdown-item"
+                                                onclick="muteChat('{{ chat.id }}', this)">
+                                                <i class="ri-volume-mute-line"></i> Mute chat
+                                            </a>
+                                        </li>
+                                        <hr>
+                                        <li><a href="#" class="chat-dropdown-item"
+                                                onclick="markChat('{{ chat.id }}', this)">
+                                                <i class="ri-check-double-line"></i> Mark as read
+                                            </a>
+                                        </li>
+                                    </ul>
+                                </div>
                             </li>
+                            {% endfor %}
+                            {% else %}
+                            <p>No chats available</p>
+                            {% endif %}
                         </ul>
                     </div>
                 </div>
-
-                <!-- CHAT LIST STARTS -->
                 <!-- end: Content side -->
                 <!-- start: Conversation -->
                 <div class="conversation conversation-default active">
@@ -109,1015 +143,55 @@
                 </div>
                 <div class="conversation" id="conversation-1">
                     <div class="conversation-top">
+                        <button type="button" class="conversation-back"><i class="ri-arrow-left-line"></i></button>
                         <div class="conversation-user">
                             <div class="imgText">
-                                <div class="chat-header userimg">
+                                <div class="chat-header userimg" style="display: inline-flex;">
 
                                     <img id="chatHeaderImg" src="" alt="Chat Image" class="cover">
-                                    <h4 id="chatHeader"></h4>
+                                    <h4 id="chatHeader" style="margin-top: 15px;"></h4>
                                 </div>
-
                             </div>
                         </div>
-
                         <div class="conversation-buttons">
                             <button type="button"><i class="ri-phone-fill"></i></button>
                             <button type="button"><i class="ri-vidicon-line"></i></button>
                             <button type="button"><i class="ri-information-line"></i></button>
                         </div>
                     </div>
-
                     <div class="conversation-main" id="conversation-main"></div>
 
-                    <div class="chat_input" id="chatInput">
-                        <ion-icon name="happy-outline"></ion-icon>
-                        <ion-icon name="mic"></ion-icon>
 
-                        <ion-icon name="document-attach-outline" id="attachFileIcon"></ion-icon>
-                        <input type="file" id="fileInput" style="display: none;">
 
-                        <input type="text" id="messageInput" placeholder="Type a message" required>
-                        <button id="sendButton">
-                            <ion-icon name="send-outline"></ion-icon>
-                        </button>
+                    <div class="conversation-form" id="chatInput">
+                        <!-- <button type="button" class="conversation-form-button"><i class="ri-emotion-line"></i></button> -->
+                        <button type="button" class="conversation-form-button" id="attachFileIcon"><i
+                                class="ri-attachment-line"></i></button>
+                        <div class="conversation-form-group">
+                            <input type="file" id="fileInput" style="display: none;">
+                            <input type="text" id="messageInput" class="conversation-form-input" rows="1"
+                                placeholder="Type here..."></input>
+                            <button type="button" class="conversation-form-record"><i class="ri-mic-line"></i></button>
+                        </div>
+                        <button type="button" id="sendButton"
+                            class="conversation-form-button conversation-form-submit"><i
+                                class="ri-send-plane-2-line"></i></button>
                     </div>
                 </div>
-
-
                 <!-- end: Conversation -->
             </div>
             <!-- end: Content -->
         </div>
     </section>
     <!-- end: Chat -->
-
-
-
-
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"
         integrity="sha512-q/dWJ3kcmjBLU4Qc47E4A9kTB4m3wuTY7vkFJDTZKjTs8jhyGQnaUrxa0Ytd0ssMZhbNua9hE+E7Qv1j+DyZwA=="
         crossorigin="anonymous"></script>
-
-    <script>
-
-
-
-
-        // start: Sidebar
-        document.querySelector('.chat-sidebar-profile-toggle').addEventListener('click', function (e) {
-            e.preventDefault()
-            this.parentElement.classList.toggle('active')
-        })
-
-        document.addEventListener('click', function (e) {
-            if (!e.target.matches('.chat-sidebar-profile, .chat-sidebar-profile *')) {
-                document.querySelector('.chat-sidebar-profile').classList.remove('active')
-            }
-        })
-        // end: Sidebar
-
-
-
-        //Add active class to select chat to open chat area
-        document.querySelectorAll('[data-conversation]').forEach(function (item) {
-            item.addEventListener('click', function (e) {
-                e.preventDefault()
-                document.querySelectorAll('.conversation').forEach(function (i) {
-                    i.classList.remove('active')
-                })
-                document.querySelector(this.dataset.conversation).classList.add('active')
-            })
-        })
-
-        document.querySelectorAll('.conversation-back').forEach(function (item) {
-            item.addEventListener('click', function (e) {
-                e.preventDefault()
-                this.closest('.conversation').classList.remove('active')
-                document.querySelector('.conversation-default').classList.add('active')
-            })
-        })
-
-        //------------------------------------------------------------------------------------------
-
-
-        var sessionUserId = "{{ user_id }}";
-        var groupId = "{{ group_id }}" || null;
-        var privateChatId = "{{ private_chat_id }}" || null;
-        window.activeChatId = groupId || privateChatId;
-        window.activeChatType = groupId ? "group" : privateChatId ? "private" : null;
-
-        const socket = io.connect("http://127.0.0.1:5005/");
-
-
-        socket.on("connect", function () {
-            console.log("Connected to the server!");
-
-            if (window.activeChatType === "group") {
-                socket.emit("join_group", { group_id: parseInt(window.activeChatId) });
-            } else if (window.activeChatType === "private") {
-                socket.emit("join_private_chat", { chat_id: parseInt(window.activeChatId), user_id: sessionUserId });
-            }
-        });
-
-        //-----------------------------------------------------------------------------------
-
-        // Fetch session data
-        async function fetchSessionData() {
-            try {
-                let response = await fetch('/get_session_data', { credentials: 'include' });
-                let data = await response.json();
-
-                if (!data.success || !data.user_id) {
-                    console.warn("⚠️ Invalid session data! Redirecting to login...");
-                    window.location.href = "/login";
-                    return null;
-                }
-
-                sessionStorage.setItem("user_id", data.user_id);
-                sessionStorage.setItem("firstname", data.firstname);
-                sessionStorage.setItem("lastname", data.lastname);
-                sessionStorage.setItem("staffid", data.staffid);
-                // sessionStorage.setItem("group_id", data.group_id);
-                sessionStorage.setItem("group_id", data.group_id || "");  // Store group_id (if available)
-                sessionStorage.setItem("private_chat_id", data.private_chat_id || "");  // Store private_chat_id (if available)
-
-                return data;
-            } catch (error) {
-                console.error("❌ ERROR: Fetching session data failed:", error);
-                return null;
-            }
-        }
-
-        //--------------------------------------------------------------------------------
-
-        window.onload = async function () {
-            await fetchSessionData();
-            let chatId = sessionStorage.getItem("active_chat_id");
-            let chatType = sessionStorage.getItem("active_chat_type");
-            if (chatId && chatType) {
-                switchChat(chatId, chatType);
-            }
-        };
-
-        //---------------------------------------------------------------------
-
-        // SWITCH FUNCTION--------------------------------------------
-        function switchChat(chat_id, chat_type) {
-            if (!chat_id || !chat_type) {
-                console.error("❌ Invalid chat switch request!");
-                return;
-            }
-
-            sessionStorage.setItem("active_chat_id", chat_id);
-            sessionStorage.setItem("active_chat_type", chat_type);
-
-
-            window.activeChatId = chat_id;
-            window.activeChatType = chat_type;
-
-            let sessionUserId = sessionStorage.getItem("user_id");
-            if (!sessionUserId) {
-                console.error("⚠️ User ID missing from sessionStorage!");
-                return;
-            }
-
-            socket.emit("leave_group", { group_id: chat_id });
-            socket.emit("leave_private_chat", { chat_id: chat_id });
-
-            if (chat_type === "group") {
-                socket.emit("leave_private_chat", { chat_id: window.activeChatId }); // Leave the previous private chat (if any)
-                socket.emit("join_group", { group_id: chat_id });
-            } else if (chat_type === "private") {
-                socket.emit("leave_group", { group_id: window.activeChatId }); // Leave the previous group chat (if any)
-                socket.emit("join_private_chat", { chat_id: chat_id, user_id: sessionUserId });
-            }
-
-
-            // console.log(`✅ Switched to ${chat_type} chat (ID: ${chat_id})`);
-            loadChat(chat_id, chat_type);
-        }
-
-        // -----------------------------------------------------
-
-        function handleChatClick(event) {
-            let chatItem = event.target.closest(".chat-item");
-            if (!chatItem) return;
-
-            event.preventDefault();
-
-            const chatId = chatItem.getAttribute("data-chat-id")?.trim();
-            const chatType = chatItem.getAttribute("data-chat-type")?.trim();
-
-
-            if (!chatId || !chatType) {
-                console.error("❌ Missing chat ID or type!", chatItem);
-                return;
-            }
-
-            console.log(`🔹 Clicked Chat ID: ${chatId}, Chat Type: ${chatType}`);
-
-            document.querySelectorAll(".chat-item").forEach(item => item.classList.remove("active-chat"));
-            chatItem.classList.add("active-chat");
-
-            sessionStorage.setItem("active_chat_id", chatId);
-            sessionStorage.setItem("active_chat_type", chatType);
-
-            updateChatHeader(
-                chatItem.querySelector(".content-message-name")?.textContent.trim(),
-                chatItem.querySelector(".content-message-image")?.getAttribute("src")
-            );
-
-            switchChat(chatId, chatType);
-        }
-
-        // Ensure all chat items listen for clicks
-        document.querySelectorAll(".chat-item").forEach(item => {
-            item.addEventListener("click", handleChatClick);
-        });
-        // ------------------------------------------------------------------------------------------------------------------
-
-        // Function to update the chat header dynamically
-        function updateChatHeader(chatName, chatImage) {
-            let chatHeader = document.getElementById("chatHeader");
-            let chatImg = document.getElementById("chatHeaderImg");
-
-            if (chatHeader) {
-                chatHeader.textContent = chatName;
-            }
-
-            if (chatImg) {
-                chatImg.src = chatImage || "/static/images/default-profile.png";
-            } else {
-                console.error("Chat header image not found!");
-            }
-
-            // Debugging: Check if multiple images exist in the chat header
-            const header = document.querySelector(".chat-header");
-            if (header) {
-                const images = header.querySelectorAll("img");
-                if (images.length > 1) {
-                    console.warn("⚠️ Multiple images detected in header! Removing extras...");
-                    images.forEach((img, index) => {
-                        if (index > 0) img.remove(); // Keep only the first image
-                    });
-                }
-            }
-        }
-
-
-
-
-        // function loadChatList() {
-        //     fetch("/get_chat_list") // 🔄 Fetch the latest chat list
-        //         .then(response => response.json())
-        //         .then(chats => {
-        //             // console.log("🔄 Updating chat list:", chats);
-
-        //             let chatListContainer = document.querySelector(".content-messages-list");
-        //             chatListContainer.innerHTML = ""; // Clear existing chat list
-
-        //             if (chats.length === 0) {
-        //                 chatListContainer.innerHTML = "<p>No chats available</p>";
-        //                 return;
-        //             }
-
-        //             chats.forEach(chat => {
-        //                 let chatItem = document.createElement("a");
-        //                 chatItem.href = `/chat/${chat.type}/${chat.id}`;
-        //                 chatItem.classList.add("chat-item");
-        //                 chatItem.dataset.chatId = chat.id;
-        //                 chatItem.dataset.chatType = chat.type;
-        //                 chatItem.style.textDecoration = "none";
-        //                 chatItem.style.color = "black";
-        //                 chatItem.onclick = function () { updateChatHeader(chat.name); };
-
-        //                 chatItem.innerHTML = `
-        //             <img class="content-message-image" src="https://via.placeholder.com/50" alt="">
-        //             <span class="content-message-info">
-        //                 <span class="content-message-name">${chat.name}</span>
-        //                 <span class="content-message-text">${chat.last_message || "No messages yet"}</span>
-        //             </span>
-        //             <span class="content-message-more">
-        //                 <span class="content-message-time">${chat.timestamp || "-"}</span>
-        //             </span>
-        //         `;
-
-        //                 chatListContainer.appendChild(chatItem);
-        //             });
-        //         })
-        //         .catch(error => console.error("❌ Error loading chat list:", error));
-        // }
-
-
-        // //-------------------------------------------------------------------------------------------
-
-        // socket.on("update_chat_list", (data) => {
-        //     // console.log("🔄 Chat list update received", data);
-        //     setTimeout(() => loadChatList(), 500); // Ensure it updates after a brief delay
-        // });
-
-
-
-        // ------------------------------------------------
-
-        //-------------------------------------------------------------------------------------------
-
-        function formatTimestamp(timestamp) {
-            if (!timestamp) {
-                console.warn("⚠️ Timestamp is missing or invalid!");
-                return "Just now"; // Fallback for invalid timestamps
-            }
-
-            // Ensure the timestamp is in ISO format (append 'Z' if missing)
-            if (!timestamp.endsWith("Z")) {
-                timestamp += "Z";
-            }
-
-            let date = new Date(timestamp);
-
-            if (isNaN(date.getTime())) {
-                console.error("Invalid timestamp:", timestamp);
-                return "Just now"; // Fallback for invalid timestamps
-            }
-
-            // Convert to local time
-            let hours = date.getHours().toString().padStart(2, "0");
-            let minutes = date.getMinutes().toString().padStart(2, "0");
-
-            return `${hours}:${minutes}`;  // Format as HH:MM
-        }
-
-        //---------------------------------------------------------------------
-
-        function loadChat(chatId, chatType) {
-            chatId = chatId || sessionStorage.getItem("active_chat_id");
-            chatType = chatType || sessionStorage.getItem("active_chat_type");
-
-            if (!chatId || !chatType) {
-                console.error("loadChat: Missing chat ID or type!", { chatId, chatType });
-                return;
-            }
-
-            console.log("📥 Loading chat:", chatId, chatType);
-            // 🔹 Make sure the user joins the correct room
-            if (chatType === "group") {
-                socket.emit("join_group", { group_id: chatId });
-                console.log(`📡 Joining group: ${chatId}`);
-            } else if (chatType === "private") {
-                socket.emit("join_private_chat", { chat_id: chatId });
-                console.log(`📡 Joining private chat: ${chatId}`);
-            }
-
-            let chatbox = document.getElementById("conversation-main");
-            if (!chatbox) {
-                console.error("Chatbox element not found!");
-                return;
-            }
-
-            chatbox.innerHTML = "<p>Loading messages...</p>";
-
-            fetch(`/get_messages?chat_id=${chatId}&chat_type=${chatType}`)
-                .then(response => response.json())
-                .then(data => {
-                    // console.log("✅ Fetched messages:", data);
-                    chatbox.innerHTML = "";
-
-                    if (!Array.isArray(data.messages)) {
-                        console.error("Invalid messages format:", data.messages);
-                        chatbox.innerHTML = "<p>Error loading messages.</p>";
-                        return;
-                    }
-
-                    if (data.messages.length === 0) {
-                        chatbox.innerHTML = "<p>No messages yet.</p>";
-                        return;
-                    }
-
-                    data.messages.forEach(message => {
-                        displayMessage(message, chatType);
-                    });
-
-                    chatbox.scrollTop = chatbox.scrollHeight;
-                })
-                .catch(error => {
-                    console.error("Error loading chat messages:", error);
-                    chatbox.innerHTML = "<p>Error loading messages.</p>";
-                });
-        }
-
-
-
-        //--------------------------------------------------------------------------------------------
-
-
-        //working ooo on real time
-        // async function displayMessage(data) {
-        //     let messagesContainer = document.getElementById("conversation-main");
-        //     if (!messagesContainer) {
-        //         console.error("Chatbox not found!");
-        //         return;
-        //     }
-
-        //     let sessionUserId = sessionStorage.getItem("user_id");
-        //     let isOutgoing = String(data.user_id) === String(sessionUserId);
-
-        //     let messageWrapper = document.createElement("div");
-        //     messageWrapper.classList.add("message-wrapper", isOutgoing ? "outgoing-message" : "incoming-message");
-        //     messageWrapper.style.alignSelf = isOutgoing ? "flex-end" : "flex-start";
-
-        //     let senderName = data.sender ? `<strong>${data.sender}:</strong> ` : "";
-        //     let messageText = data.message_type === "text" ? data.message : "";
-
-        //     let filePreview = "";
-        //     if (data.message_type === "image" || data.message_type === "file") {
-        //         let fullUrl = data.message.startsWith("http") ? data.message : window.location.origin + data.message;
-        //         filePreview = generateFilePreview(fullUrl, data.message_type);
-        //     }
-
-        //     if (!messageText && !filePreview) {
-        //         console.warn("⚠️ Empty message and no file preview! Skipping message display.");
-        //         return;
-        //     }
-
-        //     messageWrapper.innerHTML = `
-        //     <div class="message-bubble">
-        //         <p class="message-text">${senderName}${messageText}</p>
-        //         ${filePreview} 
-        //         <span class="timestamp">${formatTimestamp(data.timestamp)}</span>
-        //     </div>
-        // `;
-
-        //     messagesContainer.appendChild(messageWrapper);
-        //     messagesContainer.scrollTop = messagesContainer.scrollHeight;
-        // }
-
-
-        async function displayMessage(data) {
-            let messagesContainer = document.getElementById("conversation-main");
-            if (!messagesContainer) {
-                console.error("❌ Chatbox not found!");
-                return;
-            }
-
-            let sessionUserId = sessionStorage.getItem("user_id");
-            let isOutgoing = String(data.user_id) === String(sessionUserId);
-
-            let messageWrapper = document.createElement("div");
-            messageWrapper.classList.add("message-wrapper", isOutgoing ? "outgoing-message" : "incoming-message");
-            messageWrapper.style.alignSelf = isOutgoing ? "flex-end" : "flex-start";
-
-            let senderName = data.sender ? `<strong>${data.sender}:</strong> ` : "";
-            let messageText = data.message_type === "text" ? data.message : "";
-
-            let fileUrl = data.file_url || data.message;  // ✅ Use `file_url` if available, otherwise `message`
-            let filePreview = "";
-
-            if (data.message_type === "image" || data.message_type === "file") {
-                if (fileUrl) {
-                    let fullUrl = fileUrl.startsWith("http") ? fileUrl : window.location.origin + fileUrl;
-                    filePreview = generateFilePreview(fullUrl, data.message_type);
-                } else {
-                    console.warn("⚠️ No file URL found for preview!");
-                }
-            }
-
-            if (!messageText && !filePreview) {
-                console.warn("⚠️ Empty message and no file preview! Skipping message display.");
-                return;
-            }
-
-            messageWrapper.innerHTML = `
-        <div class="message-bubble">
-            <p class="message-text">${senderName}${messageText}</p>
-            ${filePreview} 
-            <span class="timestamp">${formatTimestamp(data.timestamp)}</span>
-        </div>
-    `;
-
-            messagesContainer.appendChild(messageWrapper);
-            messagesContainer.scrollTop = messagesContainer.scrollHeight;
-        }
-
-
-        //-------------------------------------------------------------------------------------
-        function generateFilePreview(fileUrl, fileType) {
-            if (!fileUrl) {
-                console.error("❌ Missing fileUrl!");
-                return "";
-            }
-
-            // Ensure the fileUrl is correctly formatted
-            fileUrl = fileUrl.replace(/\/{2,}/g, "/").replace(":/", "://");
-
-            let fileName = fileUrl.split("/").pop(); // Extract file name from URL
-            let previewHtml = ""; // Declare previewHtml
-
-            if (fileType === "image") {
-                previewHtml = `
-        <div class="chat-file-preview">
-            <a href="${fileUrl}" target="_blank">
-                <img src="${fileUrl}" class="chat-image-preview" alt="Uploaded Image">
-            </a>
-            <p class="file-name" style="font-size: 12px; color: white; margin-top: 5px;">📂 ${fileName}</p>
-        </div>`;
-            } else {
-                previewHtml = `
-        <div class="chat-file-preview">
-            <a href="${fileUrl}" target="_blank" class="chat-file-link" download="${fileName}">📄 Download</a>
-            <p class="file-name" style="font-size: 12px; color: white; margin-top: 5px;">📂 ${fileName}</p>
-        </div>`;
-            }
-            console.log("📸 File preview:", previewHtml); // ✅ Corrected log
-
-            return previewHtml; // ✅ Ensure it always returns a valid string
-        }
-
-
-        // function generateFilePreview(fileUrl, fileType) {
-        //     if (!fileUrl) {
-        //         console.error("❌ Missing fileUrl!");
-        //         return "";
-        //     }
-
-        //     // Ensure the fileUrl doesn't have duplicate slashes
-        //     fileUrl = fileUrl.replace(/\/{2,}/g, "/").replace(":/", "://");
-
-        //     let fileName = fileUrl.split("/").pop(); // Extract file name from URL
-        //     let previewHtml = ""; // Declare previewHtml
-
-        //     if (fileType === "image") {
-        //         previewHtml = `
-        //     <div class="chat-file-preview">
-        //         <a href="${fileUrl}" target="_blank">
-        //             <img src="${fileUrl}" class="chat-image-preview" alt="Uploaded Image">
-        //         </a>
-        //         <p class="file-name" style="font-size: 12px; color: white; margin-top: 5px;">📂 ${fileName}</p>
-        //     </div>`;
-        //     } else {
-        //         previewHtml = `
-        //     <div class="chat-file-preview">
-        //         <a href="${fileUrl}" target="_blank" class="chat-file-link" download="${fileName}">📄 Download</a>
-        //         <p class="file-name" style="font-size: 12px; color: white; margin-top: 5px;">📂 ${fileName}</p>
-        //     </div>`;
-        //     }
-        //     console.log("📸 File preview:", filePreview);
-
-
-        //     return previewHtml;
-        // }
-
-
-
-
-
-        //----------------------------------------------------------------------------------------
-
-
-        function searchUser() {
-            let query = document.getElementById("searchInput").value.trim();
-            if (query.length < 2) {
-                document.getElementById("searchResults").innerHTML = "";
-                return;
-            }
-
-            fetch(`/search_users?query=${query}`)
-                .then(response => response.json())
-                .then(data => {
-                    let searchResults = document.getElementById("searchResults");
-                    searchResults.innerHTML = "";
-
-                    if (data.length === 0) {
-                        searchResults.innerHTML = "<p>No users found</p>";
-                        return;
-                    }
-
-                    data.forEach(user => {
-                        let userItem = document.createElement("div");
-                        userItem.classList.add("search-item");
-
-                        // Use profile picture URL from backend
-                        let userImage = user.image_url || "/static/images/default-profile.png";
-
-                        userItem.innerHTML = `
-                    <div class="search-user">
-                        <img src="${userImage}" alt="User Avatar" class="user-avatar">
-                        <div class="user-details">
-                            <p>${user.firstname} ${user.lastname} (${user.staffid})</p>
-                        </div>
-                    </div>
-                `;
-
-                        // Handle click event to start private chat
-                        userItem.onclick = () => {
-                            startPrivateChat(user.id, `${user.firstname} ${user.lastname}`);
-                            searchResults.innerHTML = "";  // Clear search results
-                            document.getElementById("searchInput").value = "";  // Clear input field
-                        };
-
-                        searchResults.appendChild(userItem);
-                    });
-                })
-                .catch(error => console.error("Error searching users:", error));
-        }
-
-
-
-
-
-        //-------------------------------------------------------------------------
-
-
-
-        // function startPrivateChat(user_id, username) {
-        //     fetch("/start_private_chat", {
-        //         method: "POST",
-        //         headers: { "Content-Type": "application/json" },
-        //         body: JSON.stringify({ user_id: user_id }),
-        //     })
-        //         .then(response => response.json())
-        //         .then(data => {
-        //             if (data.error) {
-        //                 console.error("Error starting chat:", data.error);
-        //                 return;
-        //             }
-
-        //             let chatList = document.querySelector(".leftSide");
-
-        //             // Check if user is already in the chat list
-        //             let existingChat = chatList.querySelector(`[data-chat-id="${data.chat_id}"]`);
-        //             if (!existingChat) {
-        //                 // Add user to chat list dynamically
-        //                 let chatItem = document.createElement("a");
-        //                 chatItem.href = "#";
-        //                 chatItem.classList.add("chat-item");
-        //                 chatItem.setAttribute("data-chat-id", data.chat_id);
-        //                 chatItem.setAttribute("data-chat-type", "private");
-        //                 chatItem.innerHTML = `<div class="chatInfo"><h4>${username}</h4></div>`;
-
-        //                 chatItem.addEventListener("click", function () {
-        //                     switchChat(data.chat_id, "private");
-        //                 });
-
-        //                 chatList.appendChild(chatItem);
-        //             }
-
-        //             // Hide search results after clicking a user
-        //             document.getElementById("searchResults").innerHTML = "";
-        //             document.getElementById("searchInput").value = "";
-
-        //             // Open the new private chat
-        //             switchChat(data.chat_id, "private");
-        //         })
-        //         .catch(error => console.error("Error starting private chat:", error));
-        // }
-
-
-
-        //     // Function to add user to chat list dynamically
-        //     function addToChatList(userId, userName) {
-        //         let chatList = document.querySelector(".content-messages");
-
-        //         // Check if user is already in the chat list to prevent duplicates
-        //         if (document.querySelector(`.chat-item[data-chat-id="${userId}"]`)) {
-        //             return;
-        //         }
-
-        //         let chatItem = document.createElement("a");
-        //         chatItem.href = "#";
-        //         chatItem.classList.add("chat-item");
-        //         chatItem.setAttribute("data-chat-id", userId);
-        //         chatItem.setAttribute("data-chat-type", "private");
-
-        //         chatItem.innerHTML = `
-        //     <div class="chatInfo">
-        //         <img src="/static/images/ava6.jpg" alt="User Avatar" class="user-avatar">
-        //         <h4>${userName}</h4>
-        //     </div>
-        // `;
-
-
-
-        //         // Add event listener to open the chat when clicked
-        //         chatItem.addEventListener("click", function () {
-        //             switchChat(userId, "private");
-        //         });
-
-        //         chatList.appendChild(chatItem);
-        //     }
-
-        //-------------------------------------------------------------------------------------
-
-        function startPrivateChat(userId, fullName) {
-            fetch(`/start_private_chat`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ user_id: userId })
-            })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        // Update UI without refreshing
-                        addUserToChatList(userId, fullName, data.image_url);
-                    } else {
-                        console.error("Error starting chat:", data.error);
-                    }
-                })
-                .catch(error => console.error("Error:", error));
-        }
-
-        // Function to add user dynamically to the chat list
-        function addUserToChatList(userId, fullName, imageUrl) {
-            let chatList = document.getElementById("chat-list"); // Ensure this is the correct ID for your chat list
-
-            // Check if user is already in chat list
-            if (document.getElementById(`chat-user-${userId}`)) {
-                return;
-            }
-
-            let chatItem = document.createElement("div");
-            chatItem.classList.add("chat-item");
-            chatItem.id = `chat-user-${userId}`;
-
-            // Use the profile picture if available, otherwise use a default avatar
-            let profileImage = imageUrl || "/static/images/default-profile.png";
-
-            chatItem.innerHTML = `
-        <div class="chat-user">
-            <img src="${profileImage}" alt="User Avatar" class="user-avatar">
-            <div class="user-details">
-                <p>${fullName}</p>
-            </div>
-        </div>
-    `;
-
-            // Add event listener to open chat
-            chatItem.onclick = () => openChat(userId, fullName);
-
-            // Append user to the chat list dynamically
-            chatList.appendChild(chatItem);
-        }
-
-
-        // -------------------------------------------------------------
-        document.getElementById("attachFileIcon").addEventListener("click", function () {
-            document.getElementById("fileInput").click();
-        });
-
-        // Show preview when a file is selected
-        const fileInput = document.getElementById("fileInput");
-        fileInput.addEventListener("change", function () {
-            let file = fileInput.files[0];
-            if (file) {
-                let previewContainer = document.getElementById("filePreview");
-                if (!previewContainer) {
-                    previewContainer = document.createElement("div");
-                    previewContainer.id = "filePreview";
-                    previewContainer.style.marginBottom = "10px"; // Add spacing
-                    document.getElementById("chatInput").insertAdjacentElement("beforebegin", previewContainer);
-                }
-
-                let fileExt = file.name.split(".").pop().toLowerCase();
-                if (["png", "jpg", "jpeg", "gif", "mp4"].includes(fileExt)) {
-                    // Display an image preview
-                    let reader = new FileReader();
-                    reader.onload = function (e) {
-                        previewContainer.innerHTML = `
-                    <div style=" padding: 30px; display: flex; flex-direction: column; align-items: center; 
-                    justify-content: center; gap: 3px; background-color: #f9f9f9; border-radius: 5px;">
-                        <img  src="${e.target.result}" alt="${file.name}" style="max-width: 200px; border-radius: 5px;">
-
-                        <p style="text-align: center;">${file.name}</p>
-                        <button  onclick="removePreview()" style="background: red; color: white; border: none; 
-                        padding: 5px; cursor: pointer; align-self: flex-end;">x</button>
-                    </div>
-                    
-                `;
-                    };
-                    reader.readAsDataURL(file);
-                } else {
-                    // Display file name only for non-image files
-                    previewContainer.innerHTML = `
-                <div style="display: flex; align-items: center; text-align: center; gap: 3px; 
-                background-color: #f9f9f9;">
-                    <p>📂 ${file.name}</p>
-                    <button onclick="removePreview()" style="background: red; color: white; 
-                    border: none; padding: 5px; cursor: pointer;">x</button>
-                </div>
-            `;
-                }
-            }
-        });
-
-        // Function to remove file preview
-        function removePreview() {
-            let previewContainer = document.getElementById("filePreview");
-            if (previewContainer) {
-                previewContainer.remove();
-            }
-            fileInput.value = ""; // Reset file input
-        }
-
-
-        ///-------------------------------------------------------------
-
-        document.addEventListener("DOMContentLoaded", function () {
-            const sendButton = document.getElementById("sendButton");
-            const messageInput = document.getElementById("messageInput");
-            const fileInput = document.getElementById("fileInput");
-
-            // Remove existing event listeners to avoid duplicates
-            sendButton.removeEventListener("click", sendMessage);
-            messageInput.removeEventListener("keypress", handleEnterKey);
-
-            // Attach event listeners
-            sendButton.addEventListener("click", sendMessage);
-            messageInput.addEventListener("keypress", handleEnterKey);
-
-            // Function to send a message
-            // async function sendMessage() {
-            //     const file = fileInput.files[0];
-            //     const message = messageInput.value.trim();
-
-            //     if (!message && !file) {
-            //         console.error("❌ Please enter a message or select a file.");
-            //         return;
-            //     }
-
-            //     let messageData = {
-            //         user_id: sessionStorage.getItem("user_id"),
-            //         group_id: window.activeChatType === "group" ? window.activeChatId : null,
-            //         private_chat_id: window.activeChatType === "private" ? window.activeChatId : null,
-            //         message: message || null,
-            //         file_path: null, // Will be updated if a file is uploaded
-            //         message_type: file ? (file.name.match(/\.(png|jpg|jpeg|gif)$/i) ? "image" : "file") : "text",
-            //         timestamp: new Date().toISOString()
-            //     };
-
-            //     // If there's a file, upload it before emitting the WebSocket event
-            //     if (file) {
-            //         let formData = new FormData();
-            //         formData.append("file", file);
-
-            //         try {
-            //             let response = await fetch("/upload", {
-            //                 method: "POST",
-            //                 body: formData
-            //             });
-
-            //             let result = await response.json();
-            //             console.log("📂 File Upload Response:", result);
-
-            //             if (result.success && result.file_url) {
-            //                 let cleanFileUrl = result.file_url.replace("//uploads", "/uploads"); // Fix double slashes
-            //                 messageData.file_path = cleanFileUrl;
-            //             } else {
-            //                 console.error("❌ Error uploading file:", result.error);
-            //                 return;
-            //             }
-            //         } catch (error) {
-            //             console.error("❌ Error uploading file:", error);
-            //             return;
-            //         }
-            //     }
-
-            //     // Immediately add message to UI (Optimistic UI update)
-            //     displayMessage(messageData);
-
-            //     // Emit the message via WebSocket
-            //     socket.emit("send_message", messageData, (ack) => {
-            //         console.log("✅ Message sent successfully:", ack);
-
-            //         // loadChatList();
-            //     });
-
-            //     // Clear input fields
-            //     messageInput.value = "";
-            //     fileInput.value = "";
-            //     if (document.getElementById("filePreview")) {
-            //         document.getElementById("filePreview").remove();
-            //     }
-            // }
-
-
-            async function sendMessage() {
-                const file = fileInput.files[0];
-                const message = messageInput.value.trim();
-
-                if (!message && !file) {
-                    console.error("❌ Please enter a message or select a file.");
-                    return;
-                }
-
-                let messageData = {
-                    user_id: sessionStorage.getItem("user_id"),
-                    group_id: window.activeChatType === "group" ? window.activeChatId : null,
-                    private_chat_id: window.activeChatType === "private" ? window.activeChatId : null,
-                    message: message || null,
-                    message_type: file ? (file.name.match(/\.(png|jpg|jpeg|gif)$/i) ? "image" : "file") : "text",
-                    timestamp: new Date().toISOString()
-                };
-
-                if (file) {
-                    let formData = new FormData();
-                    formData.append("file", file);
-
-                    try {
-                        let response = await fetch("/upload", {
-                            method: "POST",
-                            body: formData
-                        });
-
-                        let result = await response.json();
-                        console.log("📂 File Upload Response:", result);
-
-                        if (result.success && result.file_url) {
-                            let cleanFileUrl = result.file_url.replace("//uploads", "/uploads");
-                            messageData.message = cleanFileUrl;  // Fix: Assign file path to message
-                        } else {
-                            console.error("❌ Error uploading file:", result.error);
-                            return;
-                        }
-                    } catch (error) {
-                        console.error("❌ Error uploading file:", error);
-                        return;
-                    }
-                }
-
-                displayMessage(messageData);
-
-                socket.emit("send_message", messageData, (ack) => {
-                    console.log("✅ Message sent successfully:", ack);
-                });
-
-                messageInput.value = "";
-                fileInput.value = "";
-                if (document.getElementById("filePreview")) {
-                    document.getElementById("filePreview").remove();
-                }
-            }
-
-
-            // Function to handle Enter key press
-            function handleEnterKey(event) {
-                if (event.key === "Enter" && !event.shiftKey) {
-                    event.preventDefault(); // Prevent new line
-                    sendMessage();
-                }
-            }
-        });
-
-        // Handle incoming WebSocket messages
-        socket.on("receive_message", async (data) => {
-            console.log("📩 New message received:", data);
-
-            // Ensure message belongs to the active chat
-            if (
-                (window.activeChatType === "group" && data.group_id == window.activeChatId) ||
-                (window.activeChatType === "private" && data.private_chat_id == window.activeChatId)
-
-
-
-            ) {
-
-                console.log("🔎 Active chat:", window.activeChatType, window.activeChatId);
-                console.log("🔎 Incoming message for:", data.group_id ? "Group" : "Private", data.private_chat_id || data.group_id);
-
-                await displayMessage(data);
-                // loadChatList();
-            } else {
-                console.warn("⚠️ Message received for a different chat. Ignoring...");
-            }
-        });
-
-        function joinChatRoom(chatType, chatId) {
-            window.activeChatType = chatType;
-            window.activeChatId = chatId;
-
-            // 🔹 Make sure the user joins the correct room
-            if (chatType === "group") {
-                socket.emit("join_group", { group_id: chatId });
-                console.log(`📡 Joining group: ${chatId}`);
-            } else if (chatType === "private") {
-                socket.emit("join_private_chat", { chat_id: chatId });
-                console.log(`📡 Joining private chat: ${chatId}`);
-            }
-
-            // console.log(`✅ Joined ${chatType} room:`, chatId);
-        }
-
-
-
-
-
-
-    </script>
-
-
-
-
-
     <script type="module" src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.esm.js"></script>
     <script nomodule src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.js"></script>
+
+    <script src="{{ url_for('static', filename='chat.js') }}"></script>
+
 </body>
 
 </html>
